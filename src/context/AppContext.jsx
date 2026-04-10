@@ -11,6 +11,10 @@ export const AppProvider = ({ children }) => {
     ledger: []
   });
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(() => {
+    const savedUser = localStorage.getItem('elrms_user');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
 
   const refreshData = () => {
     const employees = StorageService.getEmployees();
@@ -18,6 +22,21 @@ export const AppProvider = ({ children }) => {
     const ledger = StorageService.getLedger();
     setData({ employees, applications, ledger });
     setLoading(false);
+  };
+
+  const login = (email, password) => {
+    if (email === 'admin' && password === 'admin123') {
+      const adminUser = { email: 'admin', role: 'Administrator' };
+      setUser(adminUser);
+      localStorage.setItem('elrms_user', JSON.stringify(adminUser));
+      return { success: true };
+    }
+    return { success: false, message: 'Invalid credentials. Please use admin / admin123' };
+  };
+
+  const logout = () => {
+    setUser(null);
+    localStorage.removeItem('elrms_user');
   };
 
   useEffect(() => {
@@ -68,6 +87,10 @@ export const AppProvider = ({ children }) => {
     <AppContext.Provider value={{ 
       ...data, 
       loading, 
+      user,
+      login,
+      logout,
+      isAuthenticated: !!user,
       addEmployee, 
       updateEmployee, 
       updateEmployeeBalances,

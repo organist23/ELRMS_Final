@@ -9,6 +9,26 @@ const Dashboard = () => {
   const { employees, applications, ledger } = useApp();
   const [isGenModalOpen, setIsGenModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  React.useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const formattedDate = currentTime.toLocaleDateString('en-US', { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
+  
+  const formattedTime = currentTime.toLocaleTimeString('en-US', { 
+    hour: '2-digit', 
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true 
+  });
 
   const stats = [
     { label: 'Total Employees', value: employees.length, icon: <Users />, color: 'var(--primary)' },
@@ -24,10 +44,14 @@ const Dashboard = () => {
 
   return (
     <div className="dashboard-page">
-      <header className="page-header flex-header">
-        <div>
+      <header className="page-header dashboard-header">
+        <div className="dashboard-intro">
           <h1>Admin Dashboard</h1>
-          <p className="text-muted">Welcome back, Admin. Here is what's happening today.</p>
+        </div>
+
+        <div className="live-clock-panel">
+          <span className="current-date">{formattedDate}</span>
+          <span className="current-time">{formattedTime}</span>
         </div>
         <button 
           className="btn-primary flex-btn"

@@ -2,8 +2,10 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, Users, ClipboardList, History, LogOut } from 'lucide-react';
+import { useApp } from '../context/AppContext';
 
 const Sidebar = () => {
+  const { user, logout } = useApp();
   const menuItems = [
     { name: 'Dashboard', path: '/', icon: <LayoutDashboard size={20} /> },
     { name: 'Employees', path: '/employees', icon: <Users size={20} /> },
@@ -14,8 +16,10 @@ const Sidebar = () => {
   return (
     <aside className="sidebar glass">
       <div className="sidebar-brand">
-        <h2>ELRMS</h2>
-        <span className="badge badge-approved">Admin</span>
+        <div className="brand-logo">ELRMS</div>
+        <div className="user-info">
+          <p className="user-role">{user?.role || 'Admin'}</p>
+        </div>
       </div>
       
       <nav className="sidebar-nav">
@@ -32,9 +36,9 @@ const Sidebar = () => {
       </nav>
 
       <div className="sidebar-footer">
-        <button className="nav-link btn-logout">
+        <button className="nav-link btn-logout" onClick={logout}>
           <LogOut size={20} />
-          <span>Logout</span>
+          <span>Logout System</span>
         </button>
       </div>
     </aside>
