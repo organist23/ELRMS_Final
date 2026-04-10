@@ -10,15 +10,25 @@ const EditBalanceModal = ({ employee, onClose }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const finalBalances = {
-      vacationLeave: parseFloat(balances.vacationLeave),
-      sickLeave: parseFloat(balances.sickLeave),
-      specialLeave: parseFloat(balances.specialLeave),
-      forceLeave: parseFloat(balances.forceLeave),
-      wellnessLeave: parseFloat(balances.wellnessLeave),
-      soloParentLeave: parseFloat(balances.soloParentLeave)
-    };
-    updateEmployeeBalances(employee.id, finalBalances);
+    
+    // Only send what changed
+    const changes = {};
+    let hasChanges = false;
+
+    Object.keys(balances).forEach(key => {
+      const originalValue = parseFloat(employee.balances[key]);
+      const newValue = parseFloat(balances[key]);
+      
+      if (originalValue !== newValue) {
+        changes[key] = newValue;
+        hasChanges = true;
+      }
+    });
+
+    if (hasChanges) {
+      updateEmployeeBalances(employee.id, changes);
+    }
+    
     onClose();
   };
 
@@ -97,7 +107,7 @@ const EditBalanceModal = ({ employee, onClose }) => {
 
           <div className="modal-footer">
             <button type="button" className="btn-muted" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn-primary">Update All Balances</button>
+            <button type="submit" className="btn-primary">Save Corrections</button>
           </div>
         </form>
       </div>

@@ -1,7 +1,7 @@
 // src/components/Employees.jsx
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Search, UserPlus, FileText, Trash2, Edit3, User } from 'lucide-react';
+import { Search, UserPlus, Printer, Trash2, Edit3, User } from 'lucide-react';
 import EncodeLeaveModal from './EncodeLeaveModal';
 import RegisterEmployeeModal from './RegisterEmployeeModal';
 import EditBalanceModal from './EditBalanceModal';
@@ -22,8 +22,8 @@ const Employees = () => {
   // Sync selected employee after update
   const currentEmp = employees.find(e => e.id === selectedEmp?.id) || selectedEmp;
 
-  const filteredEmployees = employees.filter(emp => 
-    emp.fullName.toLowerCase().includes(search.toLowerCase()) || 
+  const filteredEmployees = employees.filter(emp =>
+    emp.fullName.toLowerCase().includes(search.toLowerCase()) ||
     emp.id.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -35,7 +35,7 @@ const Employees = () => {
           <h1>Employees</h1>
           <p className="text-muted">Search and manage employee records and credits.</p>
         </div>
-        <button 
+        <button
           className="btn-primary flex-btn"
           onClick={() => setIsRegModalOpen(true)}
         >
@@ -46,9 +46,9 @@ const Employees = () => {
 
       <div className="search-bar premium-card mb-24">
         <Search size={20} className="text-muted" />
-        <input 
-          type="text" 
-          placeholder="Search by ID or Name (e.g. PARAGAS or EMP-2013-001)" 
+        <input
+          type="text"
+          placeholder="Search by ID or Name (e.g. PARAGAS or EMP-2013-001)"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="search-input"
@@ -70,8 +70,8 @@ const Employees = () => {
             </thead>
             <tbody>
               {filteredEmployees.map(emp => (
-                <tr 
-                  key={emp.id} 
+                <tr
+                  key={emp.id}
                   className={currentEmp?.id === emp.id ? 'selected-row' : ''}
                   onClick={() => setSelectedEmp(emp)}
                 >
@@ -82,7 +82,7 @@ const Employees = () => {
                   <td><span className="badge badge-approved">{emp.status}</span></td>
                   <td>
                     <div className="action-btns">
-                      <button className="icon-btn text-primary"><FileText size={18} /></button>
+                      <button className="icon-btn text-primary" title="Print Record"><Printer size={18} /></button>
                     </div>
                   </td>
                 </tr>
@@ -96,10 +96,10 @@ const Employees = () => {
             <div className="details-header">
               <h3>Employee Details</h3>
               <div className="header-actions">
-                <button className="icon-btn text-warning mr-8" title="Edit Profile" onClick={() => setIsProfileModalOpen(true)}>
+                <button className="icon-btn text-warning" title="Edit Profile" onClick={() => setIsProfileModalOpen(true)}>
                   <User size={20} />
                 </button>
-                <button className="icon-btn text-primary mr-8" title="Edit Balances" onClick={() => setIsEditModalOpen(true)}>
+                <button className="icon-btn text-primary" title="Edit Balances" onClick={() => setIsEditModalOpen(true)}>
                   <Edit3 size={20} />
                 </button>
                 <button className="btn-secondary" onClick={() => setIsLeaveModalOpen(true)}>Encode Leave</button>
@@ -182,41 +182,41 @@ const Employees = () => {
       </div>
 
       {isLeaveModalOpen && currentEmp && (
-        <EncodeLeaveModal 
-          employee={currentEmp} 
-          onClose={() => setIsLeaveModalOpen(false)} 
+        <EncodeLeaveModal
+          employee={currentEmp}
+          onClose={() => setIsLeaveModalOpen(false)}
         />
       )}
 
       {isRegModalOpen && (
-        <RegisterEmployeeModal 
-          onClose={() => setIsRegModalOpen(false)} 
+        <RegisterEmployeeModal
+          onClose={() => setIsRegModalOpen(false)}
         />
       )}
 
       {isEditModalOpen && currentEmp && (
-        <EditBalanceModal 
-          employee={currentEmp} 
-          onClose={() => setIsEditModalOpen(false)} 
+        <EditBalanceModal
+          employee={currentEmp}
+          onClose={() => setIsEditModalOpen(false)}
         />
       )}
 
       {isProfileModalOpen && currentEmp && (
-        <EditEmployeeModal 
-          employee={currentEmp} 
+        <EditEmployeeModal
+          employee={currentEmp}
           onDelete={(emp) => {
             setIsProfileModalOpen(false);
             setEmpToDelete(emp);
           }}
-          onClose={() => setIsProfileModalOpen(false)} 
+          onClose={() => setIsProfileModalOpen(false)}
         />
       )}
 
       {empToDelete && (
-        <DeleteConfirmationModal 
+        <DeleteConfirmationModal
           employee={empToDelete}
-          onConfirm={deleteEmployee} 
-          onClose={() => setEmpToDelete(null)} 
+          onConfirm={deleteEmployee}
+          onClose={() => setEmpToDelete(null)}
         />
       )}
     </div>

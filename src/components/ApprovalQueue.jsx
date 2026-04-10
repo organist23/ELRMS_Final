@@ -1,22 +1,48 @@
 // src/components/ApprovalQueue.jsx
-import React from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Check, X, Calendar, User } from 'lucide-react';
+import { Check, X, Calendar, User, Search } from 'lucide-react';
 
 const ApprovalQueue = () => {
   const { applications, approveApplication, rejectApplication } = useApp();
-  const pendingApps = applications.filter(app => app.status === 'Pending Approval');
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  const pendingApps = applications.filter(app => 
+    app.status === 'Pending Approval' &&
+    (app.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+     app.employeeId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+     app.type.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
+  const totalPending = applications.filter(app => app.status === 'Pending Approval').length;
 
   return (
     <div className="approval-page">
-      <header className="page-header">
-        <h1>Approval Queue</h1>
-        <p className="text-muted">Review and process employee leave applications.</p>
+      <header className="page-header flex-header">
+        <div>
+          <h1>Approval Queue</h1>
+          <p className="text-muted">Review and process employee leave applications.</p>
+        </div>
       </header>
 
-      {pendingApps.length === 0 ? (
+      <div className="search-bar premium-card mb-24">
+        <Search size={20} className="text-muted" />
+        <input 
+          type="text" 
+          placeholder="Search pending requests by name, ID, or type..." 
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="search-input"
+        />
+      </div>
+
+      {totalPending === 0 ? (
         <div className="premium-card empty-state">
           <p>No pending applications at the moment.</p>
+        </div>
+      ) : pendingApps.length === 0 ? (
+        <div className="premium-card empty-state">
+          <p>No pending applications match your search.</p>
         </div>
       ) : (
         <div className="applications-list">

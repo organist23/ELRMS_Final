@@ -16,6 +16,32 @@ const INITIAL_DATA = {
       tin: '123-456-789',
       office: 'MACCO',
       balances: { ...LEAVE_DEFAULTS }
+    },
+    {
+      id: 'EMP-2013-002',
+      fullName: 'GUIMBA, KEIPHIL P..',
+      status: 'PERMANENT',
+      isActive: true,
+      civilStatus: 'SINGLE',
+      gsisPolicy: '2456465456',
+      position: 'MUNICIPAL ACCOUNTANT',
+      entranceOfDuty: '2025-09-02',
+      tin: '123-456-789',
+      office: 'HR',
+      balances: { ...LEAVE_DEFAULTS }
+    },
+    {
+      id: 'EMP-2013-003',
+      fullName: 'MANGUPAG, CHRISTINE C.',
+      status: 'PERMANENT',
+      isActive: true,
+      civilStatus: 'MARRIED',
+      gsisPolicy: '2023424232',
+      position: 'MUNICIPAL ACCOUNTANT',
+      entranceOfDuty: '2013-09-02',
+      tin: '123-456-789',
+      office: 'MACCO',
+      balances: { ...LEAVE_DEFAULTS }
     }
   ],
   applications: [],
@@ -81,10 +107,39 @@ class StorageService {
     const emp = data.employees.find(e => e.id === employeeId);
     if (!emp) return;
 
-    emp.balances = { ...newBalances };
-    
-    this.addLedgerEntry(employeeId, `Manual Correction: Balances updated by Admin`, 'COMPLETED', data);
+    const changes = [];
+    const updatedBalances = { ...emp.balances };
+
+    Object.keys(newBalances).forEach(key => {
+      const oldValue = parseFloat(emp.balances[key] || 0);
+      const newValue = parseFloat(newBalances[key]);
+      
+      if (oldValue !== newValue) {
+        updatedBalances[key] = newValue;
+        const label = this.getLeaveLabel(key);
+        changes.push(`${label}: ${oldValue.toFixed(3)} -> ${newValue.toFixed(3)}`);
+      }
+    });
+
+    if (changes.length === 0) return;
+
+    emp.balances = updatedBalances;
+    const transactionDesc = `Manual Correction: ${changes.join(', ')}`;
+
+    this.addLedgerEntry(employeeId, transactionDesc, 'COMPLETED', data);
     this.save(data);
+  }
+
+  getLeaveLabel(key) {
+    const labels = {
+      vacationLeave: 'VL',
+      sickLeave: 'SL',
+      specialLeave: 'Special',
+      forceLeave: 'Force',
+      wellnessLeave: 'Wellness',
+      soloParentLeave: 'Solo Parent'
+    };
+    return labels[key] || key;
   }
 
   deleteEmployee(id) {
@@ -102,7 +157,7 @@ class StorageService {
       appliedAt: new Date().toISOString()
     };
     data.applications.push(newApp);
-    
+
     this.addLedgerEntry(newApp.employeeId, `Leave Request: ${newApp.numDays} Days ${newApp.type}`, 'Pending Approval', data);
     this.save(data);
     return newApp;
@@ -119,7 +174,7 @@ class StorageService {
 
     const app = data.applications[appIndex];
     if (app.status !== 'Pending Approval') return;
-    
+
     app.status = 'Approved';
 
     const employee = data.employees.find(e => e.id === app.employeeId);
@@ -129,7 +184,7 @@ class StorageService {
       const appliedDays = parseFloat(app.numDays);
 
       const isEarnedLeave = typeKey === 'vacationLeave' || typeKey === 'sickLeave';
-      
+
       if (!isEarnedLeave) {
         // STRICT ENFORCEMENT for Privileges
         if (currentBalance < appliedDays) {
@@ -143,7 +198,7 @@ class StorageService {
         const unpaidDays = Math.max(0, appliedDays - paidDays);
         employee.balances[typeKey] = currentBalance - paidDays;
 
-        const detail = unpaidDays > 0 
+        const detail = unpaidDays > 0
           ? `${app.numDays} Days ${app.type} (${paidDays.toFixed(3)} Under Time w/ Pay, ${unpaidDays.toFixed(3)} w/o Pay)`
           : `${app.numDays} Days ${app.type} (All Under Time w/ Pay)`;
 
@@ -187,7 +242,7 @@ class StorageService {
   addLedgerEntry(employeeId, transaction, status, existingData = null) {
     const data = existingData || this.getData();
     const emp = data.employees.find(e => e.id === employeeId);
-    
+
     const balancesSnapshot = emp ? { ...emp.balances } : null;
 
     data.ledger.unshift({
@@ -199,7 +254,7 @@ class StorageService {
       status: status,
       balancesAfter: balancesSnapshot
     });
-    
+
     if (!existingData) {
       this.save(data);
     }
@@ -220,7 +275,7 @@ class StorageService {
         emp.balances.forceLeave = LEAVE_DEFAULTS.forceLeave;
         emp.balances.wellnessLeave = LEAVE_DEFAULTS.wellnessLeave;
         emp.balances.soloParentLeave = LEAVE_DEFAULTS.soloParentLeave;
-        
+
         this.addLedgerEntry(emp.id, `Annual Reset: Privilege balances restored for ${currentYear}`, 'COMPLETED', data);
       });
       data.lastResetYear = currentYear;

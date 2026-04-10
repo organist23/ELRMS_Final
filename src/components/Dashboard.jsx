@@ -1,19 +1,26 @@
 // src/components/Dashboard.jsx
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Users, Clock, ShieldCheck, Activity, Zap } from 'lucide-react';
+import { Users, Clock, ShieldCheck, Activity, Zap, Search } from 'lucide-react';
 import { formatCredits } from '../utils/leaveLogic';
 import GenerateCreditsModal from './GenerateCreditsModal';
 
 const Dashboard = () => {
   const { employees, applications, ledger } = useApp();
   const [isGenModalOpen, setIsGenModalOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const stats = [
     { label: 'Total Employees', value: employees.length, icon: <Users />, color: 'var(--primary)' },
     { label: 'Pending Approval', value: applications.filter(a => a.status === 'Pending Approval').length, icon: <Clock />, color: 'var(--warning)' },
     { label: 'Active Records', value: employees.filter(e => e.isActive).length, icon: <ShieldCheck />, color: 'var(--success)' },
   ];
+
+  const filteredLedger = ledger.filter(entry => 
+    entry.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    entry.employeeId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    entry.transaction.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="dashboard-page">
@@ -46,10 +53,19 @@ const Dashboard = () => {
       </div>
 
       <div className="premium-card ledger-section">
-        <div className="section-header">
+        <div className="section-header search-header">
           <div className="title-with-icon">
             <Activity size={20} className="icon-success" />
             <h2>Recent Ledger Activity</h2>
+          </div>
+          <div className="small-search">
+            <Search size={16} />
+            <input 
+              type="text" 
+              placeholder="Search activity..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
         </div>
         
@@ -63,7 +79,7 @@ const Dashboard = () => {
             </tr>
           </thead>
           <tbody>
-            {ledger.slice(0, 10).map((entry) => (
+            {filteredLedger.slice(0, 10).map((entry) => (
               <tr key={entry.id}>
                 <td>{new Date(entry.date).toLocaleDateString()}</td>
                 <td>
@@ -88,6 +104,11 @@ const Dashboard = () => {
                 </td>
               </tr>
             ))}
+            {filteredLedger.length === 0 && (
+              <tr>
+                <td colSpan="4" className="text-center py-20 text-muted">No activity matching your search.</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
