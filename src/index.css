@@ -15,6 +15,11 @@
   --font-main: 'Outfit', 'Inter', sans-serif;
 }
 
+html {
+  font-size: 15px; /* Reduced from 16px for compactness */
+  scroll-behavior: smooth;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -30,6 +35,8 @@ body {
   background-image: 
     radial-gradient(circle at 0% 0%, rgba(79, 70, 229, 0.05) 0, transparent 50%),
     radial-gradient(circle at 100% 100%, rgba(219, 39, 119, 0.03) 0, transparent 50%);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .glass {
@@ -65,8 +72,8 @@ input:focus {
 .premium-card {
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 24px;
+  border-radius: 1rem;
+  padding: 1.25rem; /* Reduced from 1.5rem (20px) */
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
@@ -94,7 +101,12 @@ h1, h2, h3 {
   font-weight: 700;
   letter-spacing: -0.02em;
   color: #0f172a;
+  line-height: 1.2;
 }
+
+h1 { font-size: 2.25rem; }
+h2 { font-size: 1.5rem; }
+h3 { font-size: 1.25rem; }
 
 .badge {
   padding: 4px 12px;
@@ -107,25 +119,27 @@ h1, h2, h3 {
 .app-container {
   display: flex;
   min-height: 100vh;
+  min-width: 1024px; /* Ensure app doesn't break into mobile view as per user request */
 }
 
 .sidebar {
-  width: 260px;
+  width: 15rem; /* Reduced from 16.25rem (240px) */
   height: 100vh;
   position: sticky;
   top: 0;
   display: flex;
   flex-direction: column;
-  padding: 24px;
+  padding: 1.25rem; /* Reduced from 1.5rem */
   background: #ffffff;
   border-right: 1px solid var(--border);
+  transition: width 0.3s ease;
 }
 
 .sidebar-brand {
-  margin-bottom: 48px;
+  margin-bottom: 2rem; /* Reduced from 48px/3rem */
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0.5rem;
 }
 
 .sidebar-brand h2 {
@@ -182,15 +196,39 @@ h1, h2, h3 {
 
 .main-content {
   flex: 1;
-  padding: 40px;
-  max-width: 1400px;
+  padding: 1.5rem; /* Reduced from 2.5rem (24px) */
+  max-width: 1800px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+@media (max-width: 1280px) {
+  .main-content {
+    max-width: 100%;
+    padding: 2rem;
+  }
+}
+
+@media (max-width: 1024px) {
+  html {
+    font-size: 15px; /* Slight scaling for tablets */
+  }
+  
+  .sidebar {
+    width: 15rem; /* 240px */
+    padding: 1.25rem;
+  }
+  
+  .main-content {
+    padding: 1.5rem;
+  }
 }
 
 .dashboard-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 24px;
-  margin-bottom: 48px;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); /* 240px */
+  gap: 1.25rem; /* 20px */
+  margin-bottom: 2rem; /* 32px */
 }
 
 .stat-card {
@@ -224,12 +262,12 @@ h1, h2, h3 {
 }
 
 .page-header {
-  margin-bottom: 40px;
+  margin-bottom: 1.75rem; /* 28px */
 }
 
 .page-header h1 {
-  font-size: 2.25rem;
-  margin-bottom: 8px;
+  font-size: 2rem; /* Reduced from 2.25rem */
+  margin-bottom: 0.25rem;
 }
 
 .text-muted {
@@ -287,8 +325,18 @@ h1, h2, h3 {
   gap: 8px;
 }
 
-.mb-24 {
-  margin-bottom: 24px;
+.mb-16 { margin-bottom: 16px; }
+.mb-24 { margin-bottom: 24px; }
+
+.alert-info {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
+  padding: 12px 16px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .search-bar {
@@ -435,15 +483,15 @@ h1, h2, h3 {
 
 .modal-content {
   width: 100%;
-  max-width: 600px;
-  padding: 40px;
+  max-width: 37.5rem; /* 600px */
+  padding: 2rem; /* Reduced from 2.5rem */
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 32px;
+  margin-bottom: 1.5rem; /* Reduced from 2rem */
 }
 
 .employee-strip {
