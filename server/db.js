@@ -1,24 +1,14 @@
-// server/db.js
-import mysql from 'mysql2/promise';
+const mysql = require('mysql2/promise');
+require('dotenv').config();
 
 const pool = mysql.createPool({
-  host: 'localhost',
-  user: 'admin',
-  password: 'admin',           // Change this to your SQLyog/MySQL password
-  database: 'elrms_db',
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'elrms_v2',
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
 });
 
-// Test connection on startup
-pool.getConnection()
-  .then(conn => {
-    console.log('✅ MySQL connected to elrms_db');
-    conn.release();
-  })
-  .catch(err => {
-    console.error('❌ MySQL connection failed:', err.message);
-  });
-
-export default pool;
+module.exports = pool;
