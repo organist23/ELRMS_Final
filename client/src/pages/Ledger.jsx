@@ -7,6 +7,8 @@ const Ledger = () => {
   const [employees, setEmployees] = useState([]);
   const [selectedEmpId, setSelectedEmpId] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [loading, setLoading] = useState(true);
 
   const fetchHistory = async () => {
@@ -44,7 +46,12 @@ const Ledger = () => {
       item.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.employee_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.transaction_desc.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesEmp && matchesSearch;
+    
+    const actionDate = new Date(item.action_date);
+    const matchesStart = startDate ? actionDate >= new Date(startDate) : true;
+    const matchesEnd = endDate ? actionDate <= new Date(endDate + 'T23:59:59') : true;
+
+    return matchesEmp && matchesSearch && matchesStart && matchesEnd;
   });
 
   return (
@@ -78,7 +85,26 @@ const Ledger = () => {
               <option key={emp.id} value={emp.id}>{emp.full_name}</option>
             ))}
           </select>
-          <button className="btn-secondary" onClick={() => { setSelectedEmpId(''); setSearchQuery(''); }}>Clear Filters</button>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+             <input 
+               type="date" 
+               className="input-field" 
+               style={{ width: '150px' }} 
+               value={startDate}
+               onChange={e => setStartDate(e.target.value)}
+             />
+             <span style={{ color: 'var(--text-muted)' }}>to</span>
+             <input 
+               type="date" 
+               className="input-field" 
+               style={{ width: '150px' }} 
+               value={endDate}
+               onChange={e => setEndDate(e.target.value)}
+             />
+          </div>
+
+          <button className="btn-secondary" onClick={() => { setSelectedEmpId(''); setSearchQuery(''); setStartDate(''); setEndDate(''); }}>Clear Filters</button>
         </div>
       </div>
 

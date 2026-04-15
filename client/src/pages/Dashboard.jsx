@@ -1,11 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import api from '../utils/api';
-import { Users, FileClock, Activity, AlertCircle } from 'lucide-react';
+import { Users, FileClock, Activity, AlertCircle, Search } from 'lucide-react';
 
 const Dashboard = () => {
   const [stats, setStats] = useState({ totalEmployees: 0, pendingApproval: 0 });
   const [recentLedger, setRecentLedger] = useState([]);
+  const [filteredLedger, setFilteredLedger] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const filtered = recentLedger.filter(item => {
+      const name = item.full_name || '';
+      const desc = item.transaction_desc || '';
+      return name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+             desc.toLowerCase().includes(searchQuery.toLowerCase());
+    });
+    setFilteredLedger(filtered);
+  }, [searchQuery, recentLedger]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -16,6 +28,7 @@ const Dashboard = () => {
         ]);
         setStats(statsRes.data);
         setRecentLedger(ledgerRes.data);
+        // setFilteredLedger will be handled by the specialized useEffect above
       } catch (err) {
         console.error('Error fetching dashboard data', err);
       } finally {
@@ -52,9 +65,25 @@ const Dashboard = () => {
       </div>
 
       <div className="recent-activity premium-card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-          <h3 style={{ fontSize: '1.25rem', fontWeight: '700' }}>Recent Ledger Activity</h3>
-          <button className="btn-secondary" style={{ fontSize: '0.875rem' }}>View All</button>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', gap: '20px' }}>
+          <h3 style={{ fontSize: '1.25rem', fontWeight: '700', flexShrink: 0 }}>Recent Ledger Activity</h3>
+          
+          <div style={{ display: 'flex', gap: '12px', flex: 1, justifyContent: 'flex-end', alignItems: 'center' }}>
+            <div style={{ position: 'relative', width: '280px' }}>
+              <Search size={16} style={{ position: 'absolute', left: '12px', top: '10px', color: 'var(--text-muted)' }} />
+              <input 
+                type="text" 
+                className="input-field" 
+                placeholder="Search activity..." 
+                style={{ paddingLeft: '36px', height: '36px', fontSize: '0.875rem' }} 
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <button className="btn-secondary" style={{ fontSize: '0.875rem', height: '36px', display: 'flex', alignItems: 'center' }} onClick={() => setSearchQuery('')}>
+              Clear
+            </button>
+          </div>
         </div>
 
         <div className="data-table-container">
@@ -68,7 +97,7 @@ const Dashboard = () => {
               </tr>
             </thead>
             <tbody>
-              {recentLedger.length > 0 ? recentLedger.map((item) => (
+              {filteredLedger.length > 0 ? filteredLedger.map((item) => (
                 <tr key={item.id}>
                   <td style={{ fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>{new Date(item.action_date).toLocaleDateString()}</td>
                   <td style={{ fontWeight: '700' }}>{item.full_name}</td>
