@@ -1,7 +1,7 @@
 :root {
-  --primary: #4f46e5;
-  --primary-hover: #4338ca;
-  --primary-light: #eef2ff;
+  --primary: #1e3a8a;
+  --primary-hover: #1e40af;
+  --primary-light: #eff6ff;
   --secondary: #64748b;
   --bg-main: #f8fafc;
   --bg-sidebar: #ffffff;
@@ -99,7 +99,7 @@ button {
   justify-content: center;
 }
 
-.icon-blue { background: #e0e7ff; color: #4338ca; }
+.icon-blue { background: #dbeafe; color: #1e3a8a; }
 .icon-green { background: #dcfce7; color: #166534; }
 .icon-yellow { background: #fef3c7; color: #92400e; }
 
@@ -151,28 +151,90 @@ button {
 .btn-primary {
   background: var(--primary);
   color: white;
-  padding: 10px 20px;
-  border-radius: 8px;
+  padding: 10px 24px;
+  border-radius: 10px;
   border: none;
   font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 10px -2px rgba(30, 58, 138, 0.2);
 }
 
 .btn-primary:hover {
   background: var(--primary-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 15px -3px rgba(30, 58, 138, 0.3);
+}
+
+.btn-secondary {
+  background: var(--white);
+  color: var(--secondary);
+  padding: 10px 24px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-secondary:hover {
+  background: var(--bg-main);
+  border-color: var(--secondary);
+  transform: translateY(-1px);
+}
+
+/* Specific Outline Variants for Employee Management */
+.btn-outline-primary {
+  background: transparent;
+  color: var(--primary);
+  border: 1.5px solid var(--primary);
+  padding: 10px 24px;
+  border-radius: 10px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-outline-primary:hover {
+  background: var(--primary-light);
+  transform: translateY(-1px);
+}
+
+.btn-outline-warning {
+  background: transparent;
+  color: var(--warning);
+  border: 1.5px solid var(--warning);
+  padding: 10px 24px;
+  border-radius: 10px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-outline-warning:hover {
+  background: #fffbeb;
+  transform: translateY(-1px);
 }
 
 .input-field {
   width: 100%;
-  padding: 12px 16px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  padding: 12px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
   outline: none;
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
+  transition: all 0.2s ease;
+  background: white;
 }
 
 .input-field:focus {
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  ring: 2px solid var(--primary-light);
+  box-shadow: 0 0 0 4px rgba(30, 58, 138, 0.05);
 }
 
 /* Modal */
@@ -221,15 +283,131 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  background: linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%);
 }
 
 .login-card {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  padding: 48px;
-  border-radius: 24px;
-  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1);
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
   width: 100%;
-  max-width: 400px;
+  max-width: 850px;
+  display: flex;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.login-brand-side {
+  flex: 1.2;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  padding: 0;
+}
+
+.login-brand-side::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 10% 20%, rgba(30, 58, 138, 0.02) 0%, transparent 40%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.login-logo-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: grayscale(5%) contrast(102%);
+  animation: subtleBreathe 10s ease-in-out infinite;
+}
+
+.login-form-side {
+  flex: 1;
+  padding: 56px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  border-left: 1px solid var(--border);
+}
+
+@keyframes subtleBreathe {
+  0% { transform: scale(1); opacity: 0.95; }
+  50% { transform: scale(1.02); opacity: 1; }
+  100% { transform: scale(1); opacity: 0.95; }
+}
+
+@media (max-width: 768px) {
+  .login-card {
+    flex-direction: column;
+    max-width: 400px;
+    margin: 20px;
+  }
+  .login-brand-side {
+    padding: 30px;
+    border-bottom: 1px solid var(--border);
+  }
+  .login-form-side {
+    padding: 32px;
+    border-left: none;
+  }
+}
+/* Utility Classes */
+.mb-32 { margin-bottom: 32px; }
+.glass-effect {
+  background: rgba(255, 255, 255, 0.8) !important;
+  backdrop-filter: blur(12px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Animations */
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.slide-in {
+  animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.fade-in {
+  animation: fadeIn 0.2s ease-out;
+}
+
+.toast-item {
+  transition: all 0.3s ease;
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  padding: 8px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-btn:hover {
+  background: var(--primary-light);
+}
+
+/* Remove Number Input Spinners */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type=number] {
+  -moz-appearance: textfield;
 }

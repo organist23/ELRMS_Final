@@ -102,28 +102,28 @@ const Ledger = () => {
                     <td style={{ fontSize: '0.875rem' }}>
                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <FileText size={14} color="var(--primary)" />
-                          {record.transaction_desc}
+                          {record.transaction_desc.replace(/\.000/g, '')}
                        </div>
                     </td>
                     <td>
                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px', fontSize: '0.75rem' }}>
                           <div style={{ background: '#f8fafc', padding: '4px 8px', borderRadius: '4px' }}>
-                             <span style={{ color: 'var(--text-muted)' }}>VL:</span> <strong>{parseFloat(record.vl_bal).toFixed(3)}</strong>
+                             <span style={{ color: 'var(--text-muted)' }}>VL:</span> <strong>{Number(record.vl_bal)}</strong>
                           </div>
                           <div style={{ background: '#f8fafc', padding: '4px 8px', borderRadius: '4px' }}>
-                             <span style={{ color: 'var(--text-muted)' }}>SL:</span> <strong>{parseFloat(record.sl_bal).toFixed(3)}</strong>
+                             <span style={{ color: 'var(--text-muted)' }}>SL:</span> <strong>{Number(record.sl_bal)}</strong>
                           </div>
                           <div style={{ background: '#f8fafc', padding: '4px 8px', borderRadius: '4px' }}>
-                             <span style={{ color: 'var(--text-muted)' }}>SP:</span> <strong>{parseFloat(record.sp_bal).toFixed(1)}</strong>
+                             <span style={{ color: 'var(--text-muted)' }}>SP:</span> <strong>{Number(record.sp_bal)}</strong>
                           </div>
                           <div style={{ background: '#f8fafc', padding: '4px 8px', borderRadius: '4px' }}>
-                             <span style={{ color: 'var(--text-muted)' }}>FL:</span> <strong>{parseFloat(record.fl_bal).toFixed(1)}</strong>
+                             <span style={{ color: 'var(--text-muted)' }}>FL:</span> <strong>{Number(record.fl_bal)}</strong>
                           </div>
                           <div style={{ background: '#f8fafc', padding: '4px 8px', borderRadius: '4px' }}>
-                             <span style={{ color: 'var(--text-muted)' }}>WL:</span> <strong>{parseFloat(record.wl_bal).toFixed(1)}</strong>
+                             <span style={{ color: 'var(--text-muted)' }}>WL:</span> <strong>{Number(record.wl_bal)}</strong>
                           </div>
                           <div style={{ background: '#f8fafc', padding: '4px 8px', borderRadius: '4px' }}>
-                             <span style={{ color: 'var(--text-muted)' }}>SOLO:</span> <strong>{parseFloat(record.spl_bal).toFixed(1)}</strong>
+                             <span style={{ color: 'var(--text-muted)' }}>SOLO:</span> <strong>{Number(record.spl_bal)}</strong>
                           </div>
                        </div>
                     </td>

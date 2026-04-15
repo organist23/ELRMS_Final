@@ -46,11 +46,36 @@ CREATE TABLE leave_balances (
     -- Initial balance fields for newly registered
     bbw_vl DECIMAL(10,3) DEFAULT 0.000, -- Balance Brought Forward VL
     bbw_sl DECIMAL(10,3) DEFAULT 0.000, -- Balance Brought Forward SL
+    forwarded_vl DECIMAL(10,3) DEFAULT 0.000,
+    forwarded_sl DECIMAL(10,3) DEFAULT 0.000,
+    undertime_w_pay DECIMAL(10,3) DEFAULT 0.000,
+    leave_w_o_pay DECIMAL(10,3) DEFAULT 0.000,
     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 4. Leave Applications (Workflows)
+-- 4. Yearly Action Logs (To prevent duplicate rollovers)
+CREATE TABLE yearly_action_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    action_type VARCHAR(50) NOT NULL, -- 'ROLLOVER', 'PRIVILEGE_RESET'
+    year INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_yearly_action (action_type, year)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 5. Yearly Credits Archive (History of rollovers)
+CREATE TABLE yearly_credits_archive (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    employee_id VARCHAR(50) NOT NULL,
+    year INT NOT NULL,
+    vl_forwarded DECIMAL(10,3),
+    sl_forwarded DECIMAL(10,3),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_emp_year (employee_id, year),
+    FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 6. Leave Applications (Workflows)
 CREATE TABLE leave_applications (
     id INT AUTO_INCREMENT PRIMARY KEY,
     employee_id VARCHAR(50) NOT NULL,
@@ -58,13 +83,16 @@ CREATE TABLE leave_applications (
     date_from DATE NOT NULL,
     date_to DATE NOT NULL,
     num_days DECIMAL(10,3) NOT NULL,
+    inclusive_dates TEXT,
     reason TEXT,
     status ENUM('Pending Approval', 'Approved', 'Rejected') DEFAULT 'Pending Approval',
     applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    with_pay DECIMAL(10,3) DEFAULT 0.000,
+    without_pay DECIMAL(10,3) DEFAULT 0.000,
     FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 5. Ledger (Audit Trail / History)
+-- 7. Ledger (Audit Trail / History)
 -- This tracks every change to credits (Approved leaves, Manual accruals, BBW updates)
 CREATE TABLE ledger (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -81,7 +109,7 @@ CREATE TABLE ledger (
     FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 6. Credit Generation Log (To prevent duplicate manual accruals for the same period)
+-- 8. Credit Generation Log (To prevent duplicate manual accruals for the same period)
 CREATE TABLE accrual_logs (
     id INT AUTO_INCREMENT PRIMARY KEY,
     month INT NOT NULL,

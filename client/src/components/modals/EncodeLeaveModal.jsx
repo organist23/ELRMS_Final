@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import api from '../../utils/api';
 import { X, Calendar } from 'lucide-react';
+import { useNotification } from '../../context/NotificationContext';
 
 const EncodeLeaveModal = ({ employee, onClose, onSuccess }) => {
+  const { showToast } = useNotification();
   const [leaveData, setLeaveData] = useState({
     employee_id: employee.id,
     leave_type: 'Vacation Leave',
@@ -77,10 +79,11 @@ const EncodeLeaveModal = ({ employee, onClose, onSuccess }) => {
     e.preventDefault();
     try {
       await api.post('/leaves/apply', leaveData);
+      showToast('Leave application submitted for approval', 'success');
       onSuccess();
       onClose();
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to submit leave application');
+      showToast(err.response?.data?.error || 'Failed to submit leave application', 'error');
     }
   };
 

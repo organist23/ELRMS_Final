@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import api from '../utils/api';
 import { CheckCircle, XCircle, Clock, Info } from 'lucide-react';
+import { useNotification } from '../context/NotificationContext';
 
 const Leaves = () => {
+  const { showToast, confirm } = useNotification();
   const [pendingLeaves, setPendingLeaves] = useState([]);
   const [historyLeaves, setHistoryLeaves] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -27,13 +29,18 @@ const Leaves = () => {
   }, []);
 
   const handleAction = async (id, action) => {
-    if (!window.confirm(`Are you sure you want to ${action} this leave application?`)) return;
+    const isConfirmed = await confirm(
+      'Confirm Action',
+      `Are you sure you want to ${action} this leave application? This will update employee balances and creates a ledger record.`
+    );
+    if (!isConfirmed) return;
+
     try {
       await api.post(`/leaves/${action}`, { application_id: id });
-      alert(`Action completed successfully.`);
+      showToast(`${action.charAt(0).toUpperCase() + action.slice(1)} completed successfully.`, 'success');
       fetchData();
     } catch (err) {
-      alert(err.response?.data?.error || `Failed to perform ${action}`);
+      showToast(err.response?.data?.error || `Failed to ${action}`, 'error');
     }
   };
 
@@ -70,7 +77,7 @@ const Leaves = () => {
                     <td style={{ fontWeight: '700' }}>{leave.full_name}</td>
                     <td style={{ fontWeight: '500', color: 'var(--primary)' }}>{leave.leave_type}</td>
                     <td style={{ fontSize: '0.875rem' }}>
-                      <div style={{ fontWeight: '600' }}>{leave.num_days} Days</div>
+                      <div style={{ fontWeight: '600' }}>{Number(leave.num_days)} Days</div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: '600' }}>{leave.inclusive_dates}</div>
                     </td>
                     <td>
@@ -115,14 +122,14 @@ const Leaves = () => {
                   </td>
                   <td style={{ fontWeight: '600' }}>{leave.full_name}</td>
                   <td style={{ fontSize: '0.875rem' }}>
-                    <div>{leave.leave_type} - {leave.num_days} Days</div>
+                    <div>{leave.leave_type} - {Number(leave.num_days)} Days</div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{leave.inclusive_dates}</div>
                   </td>
                   <td style={{ fontSize: '0.75rem' }}>
                     {leave.status === 'Approved' && (
                        <div style={{ display: 'flex', gap: '8px' }}>
-                         <span style={{ color: 'var(--success)' }}>Paid: {leave.with_pay}</span>
-                         <span style={{ color: 'var(--danger)' }}>W/O Pay: {leave.without_pay}</span>
+                         <span style={{ color: 'var(--success)' }}>Paid: {Number(leave.with_pay)}</span>
+                         <span style={{ color: 'var(--danger)' }}>W/O Pay: {Number(leave.without_pay)}</span>
                        </div>
                     )}
                   </td>

@@ -6,7 +6,7 @@ const Sidebar = ({ onLogout }) => {
   return (
     <aside className="sidebar">
       <div className="logo-section mb-32" style={{ padding: '0 16px', marginBottom: '40px' }}>
-        <h2 style={{ color: 'var(--primary)', fontWeight: '800', letterSpacing: '-1px' }}>ELRMS v2</h2>
+        <h2 style={{ color: 'var(--primary)', fontWeight: '800', letterSpacing: '-1px' }}>ELRMS</h2>
         <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Admin Management</p>
       </div>
 

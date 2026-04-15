@@ -7,6 +7,8 @@ import Leaves from './pages/Leaves';
 import History from './pages/Ledger';
 import Login from './pages/Login';
 
+import { NotificationProvider } from './context/NotificationContext';
+
 const App = () => {
   const [user, setUser] = React.useState(JSON.parse(localStorage.getItem('admin_user')));
 
@@ -21,18 +23,20 @@ const App = () => {
   };
 
   return (
-    <Router>
-      <Routes>
-        <Route path="/login" element={!user ? <Login onLogin={handleLogin} /> : <Navigate to="/" />} />
-        
-        <Route element={user ? <Layout onLogout={handleLogout} /> : <Navigate to="/login" />}>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/employees" element={<Employees />} />
-          <Route path="/leaves" element={<Leaves />} />
-          <Route path="/history" element={<History />} />
-        </Route>
-      </Routes>
-    </Router>
+    <NotificationProvider>
+      <Router>
+        <Routes>
+          <Route path="/login" element={!user ? <Login onLogin={handleLogin} /> : <Navigate to="/" />} />
+          
+          <Route element={user ? <Layout onLogout={handleLogout} /> : <Navigate to="/login" />}>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/employees" element={<Employees />} />
+            <Route path="/leaves" element={<Leaves />} />
+            <Route path="/history" element={<History />} />
+          </Route>
+        </Routes>
+      </Router>
+    </NotificationProvider>
   );
 };
 

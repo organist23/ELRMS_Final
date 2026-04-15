@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import api from '../../utils/api';
 import { X } from 'lucide-react';
+import { useNotification } from '../../context/NotificationContext';
 
 const RegisterEmployeeModal = ({ onClose, onSuccess }) => {
+  const { showToast } = useNotification();
   const [formData, setFormData] = useState({
     id: '',
     full_name: '',
@@ -21,10 +23,11 @@ const RegisterEmployeeModal = ({ onClose, onSuccess }) => {
     e.preventDefault();
     try {
       await api.post('/employees', formData);
+      showToast('Employee registered successfully', 'success');
       onSuccess();
       onClose();
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to register employee');
+      showToast(err.response?.data?.error || 'Failed to register employee', 'error');
     }
   };
 
@@ -40,27 +43,27 @@ const RegisterEmployeeModal = ({ onClose, onSuccess }) => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
             <div className="form-group">
               <label>Employee ID (EID)</label>
-              <input type="text" className="input-field" placeholder="EMP-2026-001" required value={formData.id} onChange={e => setFormData({...formData, id: e.target.value})} />
+              <input type="text" className="input-field" placeholder="EMP-2026-001" required value={formData.id} onChange={e => setFormData({ ...formData, id: e.target.value })} />
             </div>
             <div className="form-group">
               <label>Full Name</label>
-              <input type="text" className="input-field" placeholder="LASTNAME, FIRSTNAME M." required value={formData.full_name} onChange={e => setFormData({...formData, full_name: e.target.value})} />
+              <input type="text" className="input-field" placeholder="LASTNAME, FIRSTNAME M." required value={formData.full_name} onChange={e => setFormData({ ...formData, full_name: e.target.value })} />
             </div>
             <div className="form-group">
               <label>Position</label>
-              <input type="text" className="input-field" required value={formData.position} onChange={e => setFormData({...formData, position: e.target.value})} />
+              <input type="text" className="input-field" required value={formData.position} onChange={e => setFormData({ ...formData, position: e.target.value })} />
             </div>
             <div className="form-group">
               <label>Office</label>
-              <input type="text" className="input-field" required value={formData.office} onChange={e => setFormData({...formData, office: e.target.value})} />
+              <input type="text" className="input-field" required value={formData.office} onChange={e => setFormData({ ...formData, office: e.target.value })} />
             </div>
             <div className="form-group">
               <label>Entrance of Duty</label>
-              <input type="date" className="input-field" required value={formData.entrance_of_duty} onChange={e => setFormData({...formData, entrance_of_duty: e.target.value})} />
+              <input type="date" className="input-field" required value={formData.entrance_of_duty} onChange={e => setFormData({ ...formData, entrance_of_duty: e.target.value })} />
             </div>
             <div className="form-group">
               <label>Civil Status</label>
-              <select className="input-field" value={formData.civil_status} onChange={e => setFormData({...formData, civil_status: e.target.value})}>
+              <select className="input-field" value={formData.civil_status} onChange={e => setFormData({ ...formData, civil_status: e.target.value })}>
                 <option value="SINGLE">SINGLE</option>
                 <option value="MARRIED">MARRIED</option>
                 <option value="WIDOWED">WIDOWED</option>
@@ -69,33 +72,33 @@ const RegisterEmployeeModal = ({ onClose, onSuccess }) => {
             </div>
             <div className="form-group">
               <label>GSIS Policy No.</label>
-              <input type="text" className="input-field" placeholder="2001556677" value={formData.gsis_policy} onChange={e => setFormData({...formData, gsis_policy: e.target.value})} />
+              <input type="text" className="input-field" placeholder="2001556677" value={formData.gsis_policy} onChange={e => setFormData({ ...formData, gsis_policy: e.target.value })} />
             </div>
             <div className="form-group">
               <label>TIN</label>
-              <input type="text" className="input-field" placeholder="123-456-789" value={formData.tin} onChange={e => setFormData({...formData, tin: e.target.value})} />
+              <input type="text" className="input-field" placeholder="123-456-789" value={formData.tin} onChange={e => setFormData({ ...formData, tin: e.target.value })} />
             </div>
             <div className="form-group">
               <label>Status</label>
-              <select className="input-field" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}>
+              <select className="input-field" value={formData.status} onChange={e => setFormData({ ...formData, status: e.target.value })}>
                 <option value="PERMANENT">PERMANENT</option>
-                <option value="CASUAL">CASUAL</option>
-                <option value="CONTRACTUAL">CONTRACTUAL</option>
+                <option value="CASUAL">SUBSTITUTE</option>
+                <option value="CONTRACTUAL">TEMPORARY</option>
               </select>
             </div>
-            
+
             <div style={{ gridColumn: 'span 2', background: 'var(--primary-light)', padding: '20px', borderRadius: '12px', marginTop: '10px' }}>
-               <h4 style={{ marginBottom: '16px', color: 'var(--primary)' }}>Initial Balances (Brought Forward)</h4>
-               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                  <div className="form-group">
-                    <label>Initial Vacation Leave (VL)</label>
-                    <input type="number" step="0.001" className="input-field" value={formData.initial_vl} onChange={e => setFormData({...formData, initial_vl: e.target.value})} />
-                  </div>
-                  <div className="form-group">
-                    <label>Initial Sick Leave (SL)</label>
-                    <input type="number" step="0.001" className="input-field" value={formData.initial_sl} onChange={e => setFormData({...formData, initial_sl: e.target.value})} />
-                  </div>
-               </div>
+              <h4 style={{ marginBottom: '16px', color: 'var(--primary)' }}>Initial Balances (Brought Forward)</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                <div className="form-group">
+                  <label>Initial Vacation Leave (VL)</label>
+                  <input type="number" step="0.001" className="input-field" value={formData.initial_vl} onChange={e => setFormData({ ...formData, initial_vl: e.target.value })} />
+                </div>
+                <div className="form-group">
+                  <label>Initial Sick Leave (SL)</label>
+                  <input type="number" step="0.001" className="input-field" value={formData.initial_sl} onChange={e => setFormData({ ...formData, initial_sl: e.target.value })} />
+                </div>
+              </div>
             </div>
           </div>
 
