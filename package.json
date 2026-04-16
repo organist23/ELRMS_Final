@@ -1,0 +1,25 @@
+{
+  "name": "elrms_final",
+  "version": "1.0.0",
+  "description": "This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.",
+  "main": "index.js",
+  "scripts": {
+    "start": "concurrently \"cd server && node index.js\" \"cd client && npm run dev\"",
+    "dev": "concurrently \"cd server && npm run dev\" \"cd client && npm run dev\"",
+    "install:all": "npm install && cd server && npm install && cd client && npm install"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/organist23/ELRMS_Final.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/organist23/ELRMS_Final/issues"
+  },
+  "homepage": "https://github.com/organist23/ELRMS_Final#readme",
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

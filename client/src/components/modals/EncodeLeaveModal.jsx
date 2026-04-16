@@ -89,18 +89,18 @@ const EncodeLeaveModal = ({ employee, onClose, onSuccess }) => {
 
   return (
     <div className="modal-overlay">
-      <div className="modal-content">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+      <div className="modal-content fade-in" style={{ maxWidth: '600px' }}>
+        <div className="flex-between mb-32">
           <div>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: '700' }}>Encode Leave Application</h2>
-            <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>For: {employee.full_name}</p>
+            <h2 className="font-bold mb-4" style={{ fontSize: '1.5rem' }}>Encode Leave Application</h2>
+            <p className="text-small text-muted font-bold">For: {employee.full_name}</p>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none' }}><X /></button>
+          <button onClick={onClose} className="icon-btn"><X size={24} /></button>
         </div>
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label>Type of Leave</label>
+            <label className="label">Type of Leave</label>
             <select 
               className="input-field" 
               value={leaveData.leave_type} 
@@ -115,9 +115,9 @@ const EncodeLeaveModal = ({ employee, onClose, onSuccess }) => {
             </select>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
             <div className="form-group">
-              <label>Date From</label>
+              <label className="label">Date From</label>
               <input 
                 type="date" 
                 className="input-field" 
@@ -126,7 +126,7 @@ const EncodeLeaveModal = ({ employee, onClose, onSuccess }) => {
               />
             </div>
             <div className="form-group">
-              <label>Date To</label>
+              <label className="label">Date To</label>
               <input 
                 type="date" 
                 className="input-field" 
@@ -137,7 +137,7 @@ const EncodeLeaveModal = ({ employee, onClose, onSuccess }) => {
           </div>
 
           <div className="form-group">
-            <label>Inclusive Dates (e.g. SEPT 8, 27, 28-29)</label>
+            <label className="label">Inclusive Dates</label>
             <input 
               type="text" 
               className="input-field" 
@@ -149,7 +149,7 @@ const EncodeLeaveModal = ({ employee, onClose, onSuccess }) => {
           </div>
 
           <div className="form-group">
-            <label>Number of Days</label>
+            <label className="label">Number of Days</label>
             <input 
               type="number" 
               step="0.5" 
@@ -161,7 +161,7 @@ const EncodeLeaveModal = ({ employee, onClose, onSuccess }) => {
           </div>
 
           <div className="form-group">
-            <label>Reason / Details</label>
+            <label className="label">Reason / Details</label>
             <textarea 
               className="input-field" 
               style={{ minHeight: '100px', resize: 'vertical' }}
@@ -171,9 +171,9 @@ const EncodeLeaveModal = ({ employee, onClose, onSuccess }) => {
             />
           </div>
 
-          <div style={{ marginTop: '32px', display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-            <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div className="flex-between" style={{ marginTop: '40px', gap: '16px' }}>
+            <button type="button" className="btn-secondary" style={{ flex: 1 }} onClick={onClose}>Cancel</button>
+            <button type="submit" className="btn-primary" style={{ flex: 1.5 }}>
               <Calendar size={18} />
               Submit Application
             </button>

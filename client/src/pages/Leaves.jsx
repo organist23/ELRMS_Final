@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../utils/api';
-import { CheckCircle, XCircle, Clock, Info } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Info, RotateCcw } from 'lucide-react';
 import { useNotification } from '../context/NotificationContext';
 
 const Leaves = () => {
@@ -44,19 +44,19 @@ const Leaves = () => {
     }
   };
 
-  if (loading) return <div>Loading Queue...</div>;
+  if (loading) return <div style={{ padding: '48px', textAlign: 'center', color: 'var(--secondary)' }}>Loading Queue...</div>;
 
   return (
-    <div>
-      <header className="mb-32">
-        <h1 style={{ fontSize: '2rem', fontWeight: '800' }}>Approval Queue</h1>
-        <p style={{ color: 'var(--text-muted)' }}>Review and process pending leave applications. Logic is applied upon approval.</p>
+    <div className="fade-in">
+      <header className="mb-40">
+        <h1 className="font-bold mb-8" style={{ fontSize: '2.25rem' }}>Approval Queue</h1>
+        <p className="text-muted">Review and process pending leave applications. Logic is applied upon approval.</p>
       </header>
 
-      <div className="premium-card mb-32">
-        <h3 style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-           <Clock size={20} color="var(--primary)" />
-           Pending Requests
+      <div className="premium-card mb-40">
+        <h3 className="flex items-center gap-10 mb-24 font-bold" style={{ fontSize: '1.25rem' }}>
+           <Clock size={22} color="var(--accent)" />
+           <span>Pending Requests</span>
         </h3>
         {pendingLeaves.length > 0 ? (
           <div className="data-table-container">
@@ -73,17 +73,17 @@ const Leaves = () => {
               <tbody>
                 {pendingLeaves.map((leave) => (
                   <tr key={leave.id}>
-                    <td style={{ fontSize: '0.8125rem' }}>{new Date(leave.applied_at).toLocaleDateString()}</td>
-                    <td style={{ fontWeight: '700' }}>{leave.full_name}</td>
-                    <td style={{ fontWeight: '500', color: 'var(--primary)' }}>{leave.leave_type}</td>
-                    <td style={{ fontSize: '0.875rem' }}>
-                      <div style={{ fontWeight: '600' }}>{Number(leave.num_days)} Days</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: '600' }}>{leave.inclusive_dates}</div>
+                    <td className="text-small" style={{ color: 'var(--secondary)' }}>{new Date(leave.applied_at).toLocaleDateString()}</td>
+                    <td className="font-bold" style={{ fontSize: '0.9375rem' }}>{leave.full_name}</td>
+                    <td className="font-bold" style={{ color: 'var(--accent)' }}>{leave.leave_type}</td>
+                    <td>
+                      <div className="font-bold">{Number(leave.num_days)} Days</div>
+                      <div className="text-small font-bold" style={{ color: 'var(--accent)', opacity: 0.8 }}>{leave.inclusive_dates}</div>
                     </td>
                     <td>
                       <div style={{ display: 'flex', gap: '8px' }}>
-                        <button className="btn-primary" style={{ padding: '6px 12px', background: 'var(--success)', fontSize: '0.8125rem' }} onClick={() => handleAction(leave.id, 'approve')}>Approve</button>
-                        <button className="btn-primary" style={{ padding: '6px 12px', background: 'var(--danger)', fontSize: '0.8125rem' }} onClick={() => handleAction(leave.id, 'reject')}>Reject</button>
+                        <button className="btn-primary" style={{ padding: '8px 16px', background: 'var(--success)', fontSize: '0.8125rem' }} onClick={() => handleAction(leave.id, 'approve')}>Approve</button>
+                        <button className="btn-primary" style={{ padding: '8px 16px', background: 'var(--danger)', fontSize: '0.8125rem' }} onClick={() => handleAction(leave.id, 'reject')}>Reject</button>
                       </div>
                     </td>
                   </tr>
@@ -92,14 +92,16 @@ const Leaves = () => {
             </table>
           </div>
         ) : (
-          <p style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>No pending applications</p>
+          <div style={{ textAlign: 'center', padding: '60px 0' }}>
+            <p className="text-muted">No pending applications found in the queue.</p>
+          </div>
         )}
       </div>
 
-      <div className="premium-card">
-        <h3 style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-           <CheckCircle size={20} color="var(--success)" />
-           Processed Applications (Recent)
+      <div className="premium-card mb-40">
+        <h3 className="flex items-center gap-10 mb-24 font-bold" style={{ fontSize: '1.25rem' }}>
+           <CheckCircle size={22} color="var(--success)" />
+           <span>Processed Applications</span>
         </h3>
         <div className="data-table-container">
           <table className="data-table">
@@ -108,7 +110,7 @@ const Leaves = () => {
                 <th>Status</th>
                 <th>Employee</th>
                 <th>Details</th>
-                <th>Split Pay Info</th>
+                <th>Pay Breakdown</th>
                 <th>Action</th>
               </tr>
             </thead>
@@ -116,30 +118,30 @@ const Leaves = () => {
               {historyLeaves.map(leave => (
                 <tr key={leave.id}>
                   <td>
-                    <span className={`badge ${leave.status === 'Approved' ? 'badge-approved' : 'badge-pending'}`} style={{ background: leave.status === 'Rejected' ? '#fee2e2' : '', color: leave.status === 'Rejected' ? '#991b1b' : '' }}>
+                    <span className={`badge ${leave.status === 'Approved' ? 'badge-approved' : 'badge-rejected'}`}>
                        {leave.status}
                     </span>
                   </td>
-                  <td style={{ fontWeight: '600' }}>{leave.full_name}</td>
-                  <td style={{ fontSize: '0.875rem' }}>
-                    <div>{leave.leave_type} - {Number(leave.num_days)} Days</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{leave.inclusive_dates}</div>
+                  <td className="font-bold">{leave.full_name}</td>
+                  <td className="text-small">
+                    <div className="font-bold" style={{ color: 'var(--primary)' }}>{leave.leave_type} • {Number(leave.num_days)} Days</div>
+                    <div className="text-muted font-bold" style={{ fontSize: '0.7rem' }}>{leave.inclusive_dates}</div>
                   </td>
-                  <td style={{ fontSize: '0.75rem' }}>
+                  <td>
                     {leave.status === 'Approved' && (
-                       <div style={{ display: 'flex', gap: '8px' }}>
-                         <span style={{ color: 'var(--success)' }}>Paid: {Number(leave.with_pay)}</span>
-                         <span style={{ color: 'var(--danger)' }}>W/O Pay: {Number(leave.without_pay)}</span>
+                       <div style={{ display: 'flex', gap: '12px' }}>
+                         <span className="font-bold" style={{ color: 'var(--success)', fontSize: '0.75rem' }}>PAID: {Number(leave.with_pay)}</span>
+                         <span className="font-bold" style={{ color: 'var(--danger)', fontSize: '0.75rem' }}>W/O: {Number(leave.without_pay)}</span>
                        </div>
                     )}
                   </td>
                   <td>
                     {leave.status === 'Approved' && (
                       <button 
-                        className="btn-secondary" 
-                        style={{ padding: '4px 8px', fontSize: '0.75rem', borderColor: 'var(--warning)', color: 'var(--warning)' }}
+                        className="btn-undo" 
                         onClick={() => handleAction(leave.id, 'undo')}
                       >
+                        <RotateCcw size={14} />
                         Undo Approval
                       </button>
                     )}
@@ -150,10 +152,13 @@ const Leaves = () => {
           </table>
         </div>
       </div>
-      <div style={{ marginTop: '32px', background: '#eff6ff', padding: '20px', borderRadius: '12px', border: '1px solid #bfdbfe', display: 'flex', gap: '16px' }}>
-         <Info color="#3b82f6" />
-         <p style={{ fontSize: '0.875rem', color: '#1e40af' }}>
-           <strong>Note:</strong> Approving an application will automatically deduct the specified days from the employee's current credits and create a ledger record for historical tracking.
+
+      <div className="premium-card flex items-center gap-16" style={{ background: 'var(--accent-light)', border: '1px solid var(--accent)', opacity: 0.9 }}>
+         <div className="flex items-center justify-center" style={{ flexShrink: 0 }}>
+           <Info size={24} color="var(--accent)" />
+         </div>
+         <p className="text-small font-bold" style={{ color: 'var(--accent)', lineHeight: '1.4' }}>
+           <strong>Note:</strong> Approving an application will automatically deduct the specified days from the employee's current credits and create a permanent ledger record for historical auditing.
          </p>
       </div>
     </div>

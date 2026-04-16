@@ -6,6 +6,7 @@ import Employees from './pages/Employees';
 import Leaves from './pages/Leaves';
 import History from './pages/Ledger';
 import Login from './pages/Login';
+import LeaveCardReport from './pages/LeaveCardReport';
 
 import { NotificationProvider } from './context/NotificationContext';
 
@@ -33,6 +34,7 @@ const App = () => {
             <Route path="/employees" element={<Employees />} />
             <Route path="/leaves" element={<Leaves />} />
             <Route path="/history" element={<History />} />
+            <Route path="/employees/:id/leave-card" element={<LeaveCardReport />} />
           </Route>
         </Routes>
       </Router>

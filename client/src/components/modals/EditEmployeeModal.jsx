@@ -32,35 +32,35 @@ const EditEmployeeModal = ({ employee, onClose, onSuccess }) => {
 
   return (
     <div className="modal-overlay">
-      <div className="modal-content" style={{ maxWidth: '800px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+      <div className="modal-content fade-in" style={{ maxWidth: '800px' }}>
+        <div className="flex-between mb-32">
           <div>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: '700' }}>Edit Employee Profile</h2>
-            <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>ID: {employee.id}</p>
+            <h2 className="font-bold mb-4" style={{ fontSize: '1.5rem' }}>Edit Employee Profile</h2>
+            <p className="text-small text-muted font-bold">ID: {employee.id}</p>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none' }}><X /></button>
+          <button onClick={onClose} className="icon-btn"><X size={24} /></button>
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
             <div className="form-group">
-              <label>Full Name</label>
+              <label className="label">Full Name</label>
               <input type="text" className="input-field" required value={formData.full_name} onChange={e => setFormData({...formData, full_name: e.target.value})} />
             </div>
             <div className="form-group">
-              <label>Position</label>
+              <label className="label">Position</label>
               <input type="text" className="input-field" required value={formData.position} onChange={e => setFormData({...formData, position: e.target.value})} />
             </div>
             <div className="form-group">
-              <label>Office</label>
+              <label className="label">Office</label>
               <input type="text" className="input-field" required value={formData.office} onChange={e => setFormData({...formData, office: e.target.value})} />
             </div>
             <div className="form-group">
-              <label>Entrance of Duty</label>
+              <label className="label">Entrance of Duty</label>
               <input type="date" className="input-field" required value={formData.entrance_of_duty} onChange={e => setFormData({...formData, entrance_of_duty: e.target.value})} />
             </div>
             <div className="form-group">
-              <label>Civil Status</label>
+              <label className="label">Civil Status</label>
               <select className="input-field" value={formData.civil_status} onChange={e => setFormData({...formData, civil_status: e.target.value})}>
                 <option value="SINGLE">SINGLE</option>
                 <option value="MARRIED">MARRIED</option>
@@ -69,7 +69,7 @@ const EditEmployeeModal = ({ employee, onClose, onSuccess }) => {
               </select>
             </div>
             <div className="form-group">
-              <label>Status</label>
+              <label className="label">Status</label>
               <select className="input-field" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}>
                 <option value="PERMANENT">PERMANENT</option>
                 <option value="CASUAL">CASUAL</option>
@@ -77,56 +77,57 @@ const EditEmployeeModal = ({ employee, onClose, onSuccess }) => {
               </select>
             </div>
             <div className="form-group">
-              <label>GSIS Policy No.</label>
+              <label className="label">GSIS Policy No.</label>
               <input type="text" className="input-field" value={formData.gsis_policy} onChange={e => setFormData({...formData, gsis_policy: e.target.value})} />
             </div>
             <div className="form-group">
-              <label>TIN</label>
+              <label className="label">TIN</label>
               <input type="text" className="input-field" value={formData.tin} onChange={e => setFormData({...formData, tin: e.target.value})} />
             </div>
 
             {/* Editable Balances */}
-            <div style={{ gridColumn: 'span 2', background: 'var(--primary-light)', padding: '20px', borderRadius: '12px', marginTop: '10px' }}>
-               <h4 style={{ marginBottom: '16px', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {/* Editable Balances */}
+            <div style={{ gridColumn: 'span 2', background: 'var(--accent-light)', padding: '24px', borderRadius: 'var(--radius)', marginTop: '8px', border: '1px solid var(--accent)' }}>
+               <h4 className="font-bold mb-16" style={{ color: 'var(--accent)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                  Manual Balance Adjustment (VL/SL Only)
                </h4>
-               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '16px' }}>
+               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '24px' }}>
                   <div className="form-group">
-                    <label>Vacation Leave (VL)</label>
+                    <label className="label">Vacation Leave (VL)</label>
                     <input type="number" step="0.001" className="input-field" value={formData.vacation_leave} onChange={e => setFormData({...formData, vacation_leave: e.target.value})} />
                   </div>
                   <div className="form-group">
-                    <label>Sick Leave (SL)</label>
+                    <label className="label">Sick Leave (SL)</label>
                     <input type="number" step="0.001" className="input-field" value={formData.sick_leave} onChange={e => setFormData({...formData, sick_leave: e.target.value})} />
                   </div>
                </div>
                
                {/* Read Only Privilege Credits */}
-               <h4 style={{ marginBottom: '16px', color: 'var(--secondary)', fontSize: '0.875rem' }}>View-Only: Privilege Credits (Annual Limits)</h4>
+               <h4 className="font-bold mb-12 text-muted" style={{ fontSize: '0.75rem', textTransform: 'uppercase', opacity: 0.8 }}>View-Only: Privilege Credits (Annual Limits)</h4>
                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
-                  <div style={{ background: 'white', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.75rem' }}>
-                    <div style={{ color: 'var(--text-muted)' }}>SPECIAL</div>
-                    <div style={{ fontWeight: '700' }}>{parseFloat(employee.special_leave).toFixed(1)}</div>
+                  <div style={{ background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                    <div className="label mb-4" style={{ fontSize: '0.6rem' }}>SPECIAL</div>
+                    <div className="font-bold">{Number(employee.special_leave)}</div>
                   </div>
-                  <div style={{ background: 'white', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.75rem' }}>
-                    <div style={{ color: 'var(--text-muted)' }}>FORCE</div>
-                    <div style={{ fontWeight: '700' }}>{parseFloat(employee.force_leave).toFixed(1)}</div>
+                  <div style={{ background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                    <div className="label mb-4" style={{ fontSize: '0.6rem' }}>FORCE</div>
+                    <div className="font-bold">{Number(employee.force_leave)}</div>
                   </div>
-                  <div style={{ background: 'white', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.75rem' }}>
-                    <div style={{ color: 'var(--text-muted)' }}>WELLNESS</div>
-                    <div style={{ fontWeight: '700' }}>{parseFloat(employee.wellness_leave).toFixed(1)}</div>
+                  <div style={{ background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                    <div className="label mb-4" style={{ fontSize: '0.6rem' }}>WELLNESS</div>
+                    <div className="font-bold">{Number(employee.wellness_leave)}</div>
                   </div>
-                  <div style={{ background: 'white', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.75rem' }}>
-                    <div style={{ color: 'var(--text-muted)' }}>SOLO</div>
-                    <div style={{ fontWeight: '700' }}>{parseFloat(employee.solo_parent_leave).toFixed(1)}</div>
+                  <div style={{ background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                    <div className="label mb-4" style={{ fontSize: '0.6rem' }}>SOLO</div>
+                    <div className="font-bold">{Number(employee.solo_parent_leave)}</div>
                   </div>
                </div>
             </div>
           </div>
 
-          <div style={{ marginTop: '32px', display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-            <button type="button" className="btn-secondary" onClick={onClose} style={{ padding: '10px 24px' }}>Cancel</button>
-            <button type="submit" className="btn-primary" style={{ padding: '10px 32px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div className="flex-between" style={{ marginTop: '40px', gap: '16px' }}>
+            <button type="button" className="btn-secondary" style={{ flex: 1 }} onClick={onClose}>Cancel</button>
+            <button type="submit" className="btn-primary" style={{ flex: 1.5 }}>
               <Save size={18} />
               Save Changes
             </button>

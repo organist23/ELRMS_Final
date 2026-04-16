@@ -33,36 +33,36 @@ const RegisterEmployeeModal = ({ onClose, onSuccess }) => {
 
   return (
     <div className="modal-overlay">
-      <div className="modal-content" style={{ maxWidth: '800px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: '700' }}>Register New Employee</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none' }}><X /></button>
+      <div className="modal-content fade-in" style={{ maxWidth: '800px' }}>
+        <div className="flex-between mb-32">
+          <h2 className="font-bold" style={{ fontSize: '1.5rem' }}>Register New Employee</h2>
+          <button onClick={onClose} className="icon-btn"><X size={24} /></button>
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
             <div className="form-group">
               <label>Employee ID (EID)</label>
               <input type="text" className="input-field" placeholder="EMP-2026-001" required value={formData.id} onChange={e => setFormData({ ...formData, id: e.target.value })} />
             </div>
             <div className="form-group">
-              <label>Full Name</label>
+              <label className="label">Full Name</label>
               <input type="text" className="input-field" placeholder="LASTNAME, FIRSTNAME M." required value={formData.full_name} onChange={e => setFormData({ ...formData, full_name: e.target.value })} />
             </div>
             <div className="form-group">
-              <label>Position</label>
+              <label className="label">Position</label>
               <input type="text" className="input-field" required value={formData.position} onChange={e => setFormData({ ...formData, position: e.target.value })} />
             </div>
             <div className="form-group">
-              <label>Office</label>
+              <label className="label">Office</label>
               <input type="text" className="input-field" required value={formData.office} onChange={e => setFormData({ ...formData, office: e.target.value })} />
             </div>
             <div className="form-group">
-              <label>Entrance of Duty</label>
+              <label className="label">Entrance of Duty</label>
               <input type="date" className="input-field" required value={formData.entrance_of_duty} onChange={e => setFormData({ ...formData, entrance_of_duty: e.target.value })} />
             </div>
             <div className="form-group">
-              <label>Civil Status</label>
+              <label className="label">Civil Status</label>
               <select className="input-field" value={formData.civil_status} onChange={e => setFormData({ ...formData, civil_status: e.target.value })}>
                 <option value="SINGLE">SINGLE</option>
                 <option value="MARRIED">MARRIED</option>
@@ -71,24 +71,29 @@ const RegisterEmployeeModal = ({ onClose, onSuccess }) => {
               </select>
             </div>
             <div className="form-group">
-              <label>GSIS Policy No.</label>
+              <label className="label">GSIS Policy No.</label>
               <input type="text" className="input-field" placeholder="2001556677" value={formData.gsis_policy} onChange={e => setFormData({ ...formData, gsis_policy: e.target.value })} />
             </div>
             <div className="form-group">
-              <label>TIN</label>
+              <label className="label">TIN</label>
               <input type="text" className="input-field" placeholder="123-456-789" value={formData.tin} onChange={e => setFormData({ ...formData, tin: e.target.value })} />
             </div>
             <div className="form-group">
-              <label>Status</label>
+              <label className="label">Status</label>
               <select className="input-field" value={formData.status} onChange={e => setFormData({ ...formData, status: e.target.value })}>
                 <option value="PERMANENT">PERMANENT</option>
                 <option value="CASUAL">SUBSTITUTE</option>
-                <option value="CONTRACTUAL">TEMPORARY</option>
+                <option value="CONTRACTUAL">ELECTIVE</option>
+                <option value="CONTRACTUAL">SB</option>
+                <option value="CONTRACTUAL">MAYOR</option>
+                <option value="CONTRACTUAL">VICE MAYOR</option>
+                <option value="CONTRACTUAL">CASUAL</option>
+                <option value="CONTRACTUAL">CO TERMINUS</option>
               </select>
             </div>
 
-            <div style={{ gridColumn: 'span 2', background: 'var(--primary-light)', padding: '20px', borderRadius: '12px', marginTop: '10px' }}>
-              <h4 style={{ marginBottom: '16px', color: 'var(--primary)' }}>Initial Balances (Brought Forward)</h4>
+            <div style={{ gridColumn: 'span 2', background: 'var(--accent-light)', padding: '24px', borderRadius: 'var(--radius)', marginTop: '8px', border: '1px solid var(--accent)' }}>
+              <h4 className="font-bold mb-16" style={{ color: 'var(--accent)', textTransform: 'uppercase', fontSize: '0.8rem', letterSpacing: '0.05em' }}>Initial Balances (Brought Forward)</h4>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                 <div className="form-group">
                   <label>Initial Vacation Leave (VL)</label>
@@ -102,9 +107,9 @@ const RegisterEmployeeModal = ({ onClose, onSuccess }) => {
             </div>
           </div>
 
-          <div style={{ marginTop: '32px', display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-            <button type="button" className="btn-secondary" onClick={onClose} style={{ padding: '10px 24px' }}>Cancel</button>
-            <button type="submit" className="btn-primary" style={{ padding: '10px 32px' }}>Register Employee</button>
+          <div className="flex-between" style={{ marginTop: '40px', gap: '16px' }}>
+            <button type="button" className="btn-secondary" style={{ flex: 1 }} onClick={onClose}>Cancel</button>
+            <button type="submit" className="btn-primary" style={{ flex: 1.5 }}>Register Employee</button>
           </div>
         </form>
       </div>

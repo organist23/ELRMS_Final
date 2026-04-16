@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import api from '../utils/api';
-import { LogIn } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 
 const Login = ({ onLogin }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -32,15 +33,15 @@ const Login = ({ onLogin }) => {
         </div>
 
         <div className="login-form-side">
-          <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-            <h1 style={{ fontSize: '1.5rem', fontWeight: '700', color: 'var(--text-main)', letterSpacing: '-0.02em' }}>Administrative Access</h1>
+          <div className="mb-40 text-center">
+            <h1 className="font-bold" style={{ fontSize: '1.5rem', letterSpacing: '-0.02em' }}>ADMINISTRATIVE ACCESS</h1>
           </div>
 
-          {error && <div style={{ background: '#fee2e2', color: '#991b1b', padding: '12px', borderRadius: '8px', marginBottom: '20px', fontSize: '0.875rem', fontWeight: '500' }}>{error}</div>}
+          {error && <div className="badge badge-rejected mb-20" style={{ width: '100%', padding: '12px', textAlign: 'center' }}>{error}</div>}
 
           <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label>Username</label>
+            <div className="form-group mb-24">
+              <label className="label">Username</label>
               <input
                 type="text"
                 className="input-field"
@@ -50,21 +51,43 @@ const Login = ({ onLogin }) => {
                 required
               />
             </div>
-            <div className="form-group">
-              <label>Password</label>
-              <input
-                type="password"
-                className="input-field"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                required
-              />
+            <div className="form-group mb-32">
+              <label className="label">Password</label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  className="input-field"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                  style={{ paddingRight: '48px' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{
+                    position: 'absolute',
+                    right: '12px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: 'var(--text-light)',
+                    padding: '8px',
+                    display: 'flex'
+                  }}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
-            <button type="submit" className="btn-primary" style={{ width: '100%', padding: '14px', marginTop: '12px', justifyContent: 'center' }} disabled={loading}>
+            <button type="submit" className="btn-primary w-full flex items-center justify-center" style={{ padding: '14px', fontSize: '1rem' }} disabled={loading}>
               {loading ? 'Authenticating...' : 'Sign In'}
             </button>
           </form>
+
+          <footer className="mt-32 text-center text-small text-muted" style={{ marginTop: '32px', opacity: 0.6 }}>
+            <p>© {new Date().getFullYear()} @Keiphil G, Cedrix F.</p>
+          </footer>
         </div>
       </div>
     </div>

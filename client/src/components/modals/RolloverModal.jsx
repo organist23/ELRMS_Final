@@ -37,60 +37,69 @@ const RolloverModal = ({ onClose, onSuccess }) => {
 
   return (
     <div className="modal-overlay">
-      <div className="modal-content" style={{ maxWidth: '500px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ background: 'var(--primary-light)', padding: '10px', borderRadius: '12px' }}>
-              <Calendar size={24} color="var(--primary)" />
+      <div className="modal-content fade-in" style={{ maxWidth: '480px' }}>
+        <div className="flex-between mb-32">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div className="icon-box icon-blue">
+              <Calendar size={24} />
             </div>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: '800' }}>Yearly Rollover</h2>
+            <h2 className="font-bold" style={{ fontSize: '1.5rem' }}>Yearly Rollover</h2>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><X /></button>
+          <button onClick={onClose} className="icon-btn"><X size={24} /></button>
         </div>
 
-        <div style={{ background: '#fff9eb', border: '1px solid #ffeeba', padding: '16px', borderRadius: '12px', marginBottom: '24px', display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
-          <AlertTriangle size={20} color="#856404" style={{ flexShrink: 0, marginTop: '2px' }} />
-          <div>
-            <p style={{ color: '#856404', fontWeight: '700', fontSize: '0.875rem', marginBottom: '4px' }}>Annual Initialization</p>
-            <p style={{ color: '#856404', fontSize: '0.875rem', lineHeight: '1.5' }}>
-              This will forward balances AND reset all privilege leaves (Special, Force, Wellness) to their full annual limits for the new year.
-            </p>
+        <div className="mb-32" style={{ borderLeft: '4px solid var(--warning)', background: 'var(--warning-light)', padding: '16px 20px', borderRadius: '4px' }}>
+          <div className="flex items-center gap-12 mb-8">
+            <AlertTriangle size={18} color="var(--warning)" />
+            <span className="font-bold text-small" style={{ color: 'var(--warning)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Administrative Warning</span>
           </div>
+          <p className="text-small" style={{ color: '#92400e', fontWeight: '500', lineHeight: '1.5' }}>
+            This process forwards balances from the source year and resets all privilege leaves to their full annual limits. This action is **permanent**.
+          </p>
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>Year to Rollover FROM</label>
-            <div style={{ position: 'relative' }}>
-               <input 
-                type="number" 
-                className="input-field" 
-                style={{ padding: '12px 16px', fontSize: '1.1rem', fontWeight: '700' }}
-                placeholder="e.g., 2025" 
-                required 
-                value={year} 
-                onChange={e => setYear(e.target.value)} 
-                min="2000"
-                max="2100"
-              />
-              <span style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-                → {year ? parseInt(year) + 1 : 'New Year'}
-              </span>
+          <div className="mb-40">
+            <label className="label" style={{ textAlign: 'center', marginBottom: '16px', fontSize: '0.7rem', opacity: 0.8 }}>Choose Source Year</label>
+            
+            <div className="flex items-center justify-center gap-24">
+              <div style={{ flex: 1 }}>
+                <input 
+                  type="number" 
+                  className="input-field" 
+                  style={{ fontSize: '1.75rem', fontWeight: '800', textAlign: 'center', height: '70px', border: '2px solid var(--border)' }}
+                  placeholder="2025" 
+                  required 
+                  value={year} 
+                  onChange={e => setYear(e.target.value)} 
+                  min="2000"
+                  max="2100"
+                />
+                <p className="text-small font-bold text-center mt-8 text-muted">SOURCE YEAR</p>
+              </div>
+
+              <div className="flex items-center justify-center" style={{ color: 'var(--text-light)', paddingTop: '10px' }}>
+                <span style={{ fontSize: '2rem' }}>→</span>
+              </div>
+
+              <div style={{ flex: 1, textAlign: 'center' }}>
+                <div style={{ height: '70px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--primary-light)', border: '2px dashed var(--border)', borderRadius: 'var(--radius-sm)', fontSize: '1.75rem', fontWeight: '800', color: 'var(--primary)' }}>
+                  {year ? parseInt(year) + 1 : '...'}
+                </div>
+                <p className="text-small font-bold text-center mt-8" style={{ color: 'var(--accent)' }}>TARGET YEAR</p>
+              </div>
             </div>
-            <p style={{ marginTop: '8px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              Balances will be carried over to the year {year ? parseInt(year) + 1 : 'following'} the selected year.
-            </p>
           </div>
 
-          <div style={{ marginTop: '40px', display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-            <button type="button" className="btn-secondary" onClick={onClose} style={{ padding: '12px 24px', fontWeight: '600' }}>Cancel</button>
+          <div className="flex-between" style={{ gap: '16px' }}>
+            <button type="button" className="btn-secondary" style={{ flex: 1 }} onClick={onClose}>Cancel</button>
             <button 
               type="submit" 
               className="btn-primary" 
+              style={{ flex: 1 }}
               disabled={loading}
-              style={{ padding: '12px 32px', fontWeight: '700', background: 'var(--primary)', boxShadow: '0 4px 14px 0 rgba(0, 118, 255, 0.39)' }}
             >
-              {loading ? 'Processing...' : 'Confirm Rollover'}
+              {loading ? 'Processing...' : 'Start Rollover'}
             </button>
           </div>
         </form>
