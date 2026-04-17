@@ -1,7 +1,6 @@
 const express = require('express');
 const cors = require('cors');
 const db = require('./db');
-require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -252,7 +251,8 @@ app.post('/api/leaves/approve', async (req, res) => {
         const [new_bal] = await connection.execute('SELECT * FROM leave_balances WHERE employee_id = ?', [app_data.employee_id]);
         const b = new_bal[0];
 
-        const desc = `Leave Approved: ${app_data.leave_type} (${app_data.inclusive_dates}). Status: ${Number(with_pay)} Paid, ${Number(without_pay)} Without Pay.`;
+        const fmt = (n) => parseFloat(parseFloat(n).toFixed(3)).toString();
+        const desc = `Leave Approved: ${app_data.leave_type} (${app_data.inclusive_dates}). Status: ${fmt(with_pay)} Paid, ${fmt(without_pay)} Without Pay.`;
         const leave_type_short = app_data.leave_type === 'Vacation Leave' ? 'VL' : (app_data.leave_type === 'Sick Leave' ? 'SL' : app_data.leave_type);
 
         await connection.execute(
