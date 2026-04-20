@@ -32,11 +32,11 @@ const Ledger = () => {
 
   const filteredHistory = history.filter(item => {
     const matchesEmp = selectedEmpId ? item.employee_id === selectedEmpId : true;
-    const matchesSearch = 
+    const matchesSearch =
       (item.full_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       (item.employee_id || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       (item.transaction_desc || '').toLowerCase().includes(searchQuery.toLowerCase());
-    
+
     const actionDate = new Date(item.action_date);
     const matchesStart = startDate ? actionDate >= new Date(startDate) : true;
     const matchesEnd = endDate ? actionDate <= new Date(endDate + 'T23:59:59') : true;
@@ -114,7 +114,7 @@ const Ledger = () => {
             style={{ padding: '10px 20px', flexShrink: 0 }}
             onClick={() => { setSelectedEmpId(''); setSearchQuery(''); setStartDate(''); setEndDate(''); }}
           >
-            Reset
+            Clear
           </button>
         </div>
       </div>

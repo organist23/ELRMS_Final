@@ -15,8 +15,8 @@ const RegisterEmployeeModal = ({ onClose, onSuccess }) => {
     tin: '',
     status: 'PERMANENT',
     office: '',
-    initial_vl: 0,
-    initial_sl: 0
+    initial_vl: '',
+    initial_sl: ''
   });
 
   const handleSubmit = async (e) => {
@@ -82,13 +82,13 @@ const RegisterEmployeeModal = ({ onClose, onSuccess }) => {
               <label className="label">Status</label>
               <select className="input-field" value={formData.status} onChange={e => setFormData({ ...formData, status: e.target.value })}>
                 <option value="PERMANENT">PERMANENT</option>
-                <option value="CASUAL">SUBSTITUTE</option>
-                <option value="CONTRACTUAL">ELECTIVE</option>
-                <option value="CONTRACTUAL">SB</option>
-                <option value="CONTRACTUAL">MAYOR</option>
-                <option value="CONTRACTUAL">VICE MAYOR</option>
-                <option value="CONTRACTUAL">CASUAL</option>
-                <option value="CONTRACTUAL">CO TERMINUS</option>
+                <option value="SUBSTITUTE">SUBSTITUTE</option>
+                <option value="ELECTIVE">ELECTIVE</option>
+                <option value="SB">SB</option>
+                <option value="MAYOR">MAYOR</option>
+                <option value="VICE MAYOR">VICE MAYOR</option>
+                <option value="CASUAL">CASUAL</option>
+                <option value="CO TERMINUS">CO TERMINUS</option>
               </select>
             </div>
 
@@ -96,12 +96,12 @@ const RegisterEmployeeModal = ({ onClose, onSuccess }) => {
               <h4 className="font-bold mb-16" style={{ color: 'var(--accent)', textTransform: 'uppercase', fontSize: '0.8rem', letterSpacing: '0.05em' }}>Initial Balances (Brought Forward)</h4>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                 <div className="form-group">
-                  <label>Initial Vacation Leave (VL)</label>
-                  <input type="number" step="0.001" className="input-field" value={formData.initial_vl} onChange={e => setFormData({ ...formData, initial_vl: e.target.value })} />
+                  <label className="label">Initial Vacation Leave (VL) <span style={{ color: 'var(--accent)' }}>*</span></label>
+                  <input type="number" step="0.001" className="input-field" required value={formData.initial_vl} onChange={e => setFormData({ ...formData, initial_vl: e.target.value })} />
                 </div>
                 <div className="form-group">
-                  <label>Initial Sick Leave (SL)</label>
-                  <input type="number" step="0.001" className="input-field" value={formData.initial_sl} onChange={e => setFormData({ ...formData, initial_sl: e.target.value })} />
+                  <label className="label">Initial Sick Leave (SL) <span style={{ color: 'var(--accent)' }}>*</span></label>
+                  <input type="number" step="0.001" className="input-field" required value={formData.initial_sl} onChange={e => setFormData({ ...formData, initial_sl: e.target.value })} />
                 </div>
               </div>
             </div>
