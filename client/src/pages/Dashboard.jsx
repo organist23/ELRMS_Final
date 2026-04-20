@@ -69,31 +69,23 @@ const Dashboard = () => {
 
   return (
     <div className="fade-in">
-      {/* Header Container with Integrated Clock */}
-      <header className="mb-40" style={{ position: 'relative', display: 'flex', alignItems: 'flex-end', minHeight: '120px' }}>
+      {/* Header */}
+      <header className="mb-40" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '24px' }}>
         
-        {/* Left-aligned Title */}
-        <div style={{ flex: 1 }}>
+        {/* Left: Title */}
+        <div>
           <h1 className="font-extrabold" style={{ fontSize: '2.5rem', letterSpacing: '-1.5px', marginBottom: '4px' }}>Welcome Admin!</h1>
           <p className="text-muted font-medium">System Overview • Real-time Monitoring</p>
         </div>
 
-        {/* Absolute Centered Clock */}
-        <div style={{ 
-          position: 'absolute', 
-          left: '50%', 
-          top: '0', 
-          transform: 'translateX(-50%)',
-          zIndex: 10
-        }}>
-          <div className="premium-card py-12 px-24 inline-flex flex-col items-center shadow-md bg-white" style={{ border: '1px solid var(--border)', minWidth: '220px' }}>
-            <p className="text-secondary font-bold mb-2 uppercase tracking-widest" style={{ fontSize: '0.75rem', opacity: 0.8 }}>
-              {formatDate(currentTime)}
-            </p>
-            <p className="text-primary font-black" style={{ fontSize: '1.75rem', lineHeight: '1', letterSpacing: '-0.5px' }}>
-              {formatTime(currentTime)}
-            </p>
-          </div>
+        {/* Right: Clock */}
+        <div className="premium-card" style={{ textAlign: 'center', minWidth: '200px', padding: '16px 28px', flexShrink: 0 }}>
+          <p style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>
+            {formatDate(currentTime)}
+          </p>
+          <p style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--primary)', lineHeight: '1', letterSpacing: '-0.5px' }}>
+            {formatTime(currentTime)}
+          </p>
         </div>
       </header>
 
@@ -101,7 +93,7 @@ const Dashboard = () => {
       {audit && (audit.pendingAccrual || audit.pendingRollover) && (
         <div className="mb-40 flex flex-col gap-16">
           {audit.pendingAccrual && (
-            <div className="premium-card flex items-center justify-between p-24" style={{ background: '#fffbeb', border: '1px solid #fde68a', boxShadow: '0 4px 12px rgba(251, 191, 36, 0.1)' }}>
+            <div className="premium-card flex items-center gap-24 p-24" style={{ background: '#fffbeb', border: '1px solid #fde68a', boxShadow: '0 4px 12px rgba(251, 191, 36, 0.1)' }}>
               <div className="flex items-center gap-20">
                 <div className="bg-amber-100 p-12 rounded-full text-amber-600">
                   <AlertCircle size={24} />
@@ -113,14 +105,11 @@ const Dashboard = () => {
                   </p>
                 </div>
               </div>
-              <button className="btn-primary bg-amber-600 hover:bg-amber-700 border-none px-24 h-44 shadow-md" onClick={() => navigate('/employees')}>
-                Generate Now
-              </button>
             </div>
           )}
 
           {audit.pendingRollover && (
-            <div className="premium-card flex items-center justify-between p-24" style={{ background: '#fef2f2', border: '1px solid #fecaca', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.1)' }}>
+            <div className="premium-card flex items-center gap-24 p-24" style={{ background: '#fef2f2', border: '1px solid #fecaca', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.1)' }}>
               <div className="flex items-center gap-20">
                 <div className="bg-red-100 p-12 rounded-full text-red-600">
                   <AlertCircle size={24} />
@@ -132,9 +121,6 @@ const Dashboard = () => {
                   </p>
                 </div>
               </div>
-              <button className="btn-primary bg-red-600 hover:bg-red-700 border-none px-24 h-44 shadow-md" onClick={() => navigate('/employees')}>
-                Perform Rollover
-              </button>
             </div>
           )}
         </div>

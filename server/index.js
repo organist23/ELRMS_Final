@@ -25,6 +25,21 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
+// Reset Password (Forgot Password)
+app.put('/api/auth/reset-password', async (req, res) => {
+    const { username, newPassword } = req.body;
+    try {
+        const [users] = await db.execute('SELECT * FROM admin_users WHERE username = ?', [username]);
+        if (users.length === 0) {
+            return res.status(404).json({ error: 'Username not found.' });
+        }
+        await db.execute('UPDATE admin_users SET password = ? WHERE username = ?', [newPassword, username]);
+        res.json({ success: true, message: 'Password updated successfully.' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // 2. Employees CRUD
 app.get('/api/employees', async (req, res) => {
     try {
@@ -302,9 +317,14 @@ app.post('/api/leaves/undo', async (req, res) => {
         const [new_bal] = await connection.execute('SELECT * FROM leave_balances WHERE employee_id = ?', [app_data.employee_id]);
         const b = new_bal[0];
 
+        // Build short leave type code (e.g. 'SL', 'VL') from the full name
+        // Build short leave type code ('SL' or 'VL') from the full name
+        const leaveTypeCode = app_data.leave_type.includes('Sick') ? 'SL' : 'VL';
+        const restoredDays = parseFloat(app_data.with_pay);
+
         await connection.execute(
-            'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-            [app_data.employee_id, `UNDO APPROVAL: Restored ${app_data.with_pay} days to ${app_data.leave_type}`, b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave]
+            'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, transaction_type, leave_type, deducted_with_pay, period_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [app_data.employee_id, `UNDO APPROVAL: Restored ${restoredDays} days to ${app_data.leave_type}`, b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, 'UNDO', leaveTypeCode, restoredDays, app_data.inclusive_dates || null]
         );
 
         await connection.commit();
@@ -339,14 +359,24 @@ app.post('/api/accrual/generate', async (req, res) => {
         if (logs.length > 0) throw new Error('Credits already generated for this month and year');
 
         // 2. Add 1.25 to all active employees
-        await connection.execute('UPDATE leave_balances SET vacation_leave = vacation_leave + 1.25, sick_leave = sick_leave + 1.25');
+        await connection.execute(`
+            UPDATE leave_balances lb
+            JOIN employees e ON lb.employee_id = e.id
+            SET lb.vacation_leave = lb.vacation_leave + 1.25, 
+                lb.sick_leave = lb.sick_leave + 1.25
+            WHERE e.is_active = 1
+        `);
 
         // 3. Log into accrual_logs
         await connection.execute('INSERT INTO accrual_logs (month, year) VALUES (?, ?)', [month, year]);
 
-        // 4. Log into Ledger for all (Simplified: just one entry or per employee)
-        // Senior dev note: In a large system, we'd log per employee. For simplicity here:
-        const [emps] = await connection.execute('SELECT employee_id FROM leave_balances');
+        // 4. Log into Ledger for active employees
+        const [emps] = await connection.execute(`
+            SELECT lb.employee_id 
+            FROM leave_balances lb
+            JOIN employees e ON lb.employee_id = e.id
+            WHERE e.is_active = 1
+        `);
         for (const emp of emps) {
             const [b_rows] = await connection.execute('SELECT * FROM leave_balances WHERE employee_id = ?', [emp.employee_id]);
             const b = b_rows[0];
@@ -387,19 +417,26 @@ app.post('/api/accrual/rollover', async (req, res) => {
             throw new Error(`Yearly rollover for ${from_year} has already been completed.`);
         }
 
-        // 2. Perform Dual Action: Move current VL/SL to Forwarded AND Reset Privileges to defaults
+        // 2. Perform Dual Action: Move current VL/SL to Forwarded AND Reset Privileges to defaults (ACTIVE ONLY)
         await connection.execute(`
-            UPDATE leave_balances 
-            SET forwarded_vl = vacation_leave, 
-                forwarded_sl = sick_leave,
-                special_leave = 3.000, 
-                force_leave = 5.000, 
-                wellness_leave = 5.000, 
-                solo_parent_leave = 7.000
+            UPDATE leave_balances lb
+            JOIN employees e ON lb.employee_id = e.id
+            SET lb.forwarded_vl = lb.vacation_leave, 
+                lb.forwarded_sl = lb.sick_leave,
+                lb.special_leave = 3.000, 
+                lb.force_leave = 5.000, 
+                lb.wellness_leave = 5.000, 
+                lb.solo_parent_leave = 7.000
+            WHERE e.is_active = 1
         `);
 
-        // 3. Log in ledger and Archive snapshots for all employees
-        const [emps] = await connection.execute('SELECT employee_id FROM leave_balances');
+        // 3. Log in ledger and Archive snapshots for active employees
+        const [emps] = await connection.execute(`
+            SELECT lb.employee_id 
+            FROM leave_balances lb
+            JOIN employees e ON lb.employee_id = e.id
+            WHERE e.is_active = 1
+        `);
         for (const emp of emps) {
             const [b_rows] = await connection.execute('SELECT * FROM leave_balances WHERE employee_id = ?', [emp.employee_id]);
             const b = b_rows[0];
@@ -543,7 +580,7 @@ app.get('/api/employees/:id/leave-card/:year', async (req, res) => {
     try {
         // 1. Get Employee Info with live balances
         const [empRows] = await db.execute(`
-            SELECT e.*, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave
+            SELECT e.*, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.bbw_vl, b.bbw_sl
             FROM employees e
             JOIN leave_balances b ON e.id = b.employee_id
             WHERE e.id = ?
@@ -553,24 +590,50 @@ app.get('/api/employees/:id/leave-card/:year', async (req, res) => {
 
         // 2. Get Starting Balance (Archive from previous year)
         const prevYear = parseInt(year) - 1;
+        const regYear = new Date(employee.created_at).getFullYear();
+
         const [archiveRows] = await db.execute(
             'SELECT * FROM yearly_credits_archive WHERE employee_id = ? AND year = ?',
             [id, prevYear]
         );
         
         let startingBalance = { vl: 0, sl: 0 };
-        if (archiveRows.length > 0) {
+        let cutoffLedgerId = -1; // Ignore entries with ID <= cutoffLedgerId
+
+        if (archiveRows.length > 0 && regYear <= prevYear) {
+            // Case 1: Existing employee with a previous year archive
             startingBalance.vl = parseFloat(archiveRows[0].vl_forwarded);
             startingBalance.sl = parseFloat(archiveRows[0].sl_forwarded);
+            cutoffLedgerId = -1; // Archive is from prev year, so all ledger entries this year are relevant
         } else {
-            // Check if there's a registration entry in the ledger before this year
+            // Check for Registration in this specific year - HIGH PRIORITY for new employees
             const [regRows] = await db.execute(
-                'SELECT vl_bal, sl_bal FROM ledger WHERE employee_id = ? AND transaction_type = "REGISTRATION" AND YEAR(action_date) <= ? ORDER BY action_date ASC LIMIT 1',
+                `SELECT * FROM ledger WHERE employee_id = ? AND YEAR(action_date) = ? AND transaction_type = 'REGISTRATION' ORDER BY action_date ASC LIMIT 1`,
                 [id, year]
             );
+
             if (regRows.length > 0) {
+                // Case 2: Newly registered employee - start from their initial balance
                 startingBalance.vl = parseFloat(regRows[0].vl_bal);
                 startingBalance.sl = parseFloat(regRows[0].sl_bal);
+                cutoffLedgerId = regRows[0].id;
+            } else {
+                // Case 3: Check for ROLLOVER entry for this year (fallback for missing archive)
+                const [rolloverRows] = await db.execute(
+                    `SELECT * FROM ledger WHERE employee_id = ? AND YEAR(action_date) = ? AND transaction_type = 'ROLLOVER' ORDER BY action_date ASC LIMIT 1`,
+                    [id, year]
+                );
+                
+                if (rolloverRows.length > 0) {
+                    startingBalance.vl = parseFloat(rolloverRows[0].vl_bal);
+                    startingBalance.sl = parseFloat(rolloverRows[0].sl_bal);
+                    cutoffLedgerId = rolloverRows[0].id;
+                } else {
+                    // Case 4: Complete fresh start from base balances
+                    startingBalance.vl = parseFloat(employee.bbw_vl || 0);
+                    startingBalance.sl = parseFloat(employee.bbw_sl || 0);
+                    cutoffLedgerId = -1;
+                }
             }
         }
 
@@ -582,6 +645,9 @@ app.get('/api/employees/:id/leave-card/:year', async (req, res) => {
 
         // A. Filter for VL/SL Rows (already implemented)
         const vlSlEntries = ledgerRows.filter(entry => {
+            // Skip entries that were already part of the starting balance calculation
+            if (entry.id <= cutoffLedgerId) return false;
+
             const desc = entry.transaction_desc.toLowerCase();
             const type = entry.transaction_type;
             const isSystem = type === 'REGISTRATION' || type === 'ROLLOVER' || 
@@ -621,64 +687,82 @@ app.get('/api/employees/:id/leave-card/:year', async (req, res) => {
             let row = {
                 date: entry.action_date,
                 period_text: entry.period_text || '',
-                particulars: entry.transaction_desc.replace(/\.000/g, ''),
+                particulars: '',
                 remarks: entry.remarks || '',
-                vl: { earned: 0, deduct_w_pay: 0, deduct_wo_pay: 0, balance: entry.vl_bal },
-                sl: { earned: 0, deduct_w_pay: 0, deduct_wo_pay: 0, balance: entry.sl_bal }
+                vl: { earned: 0, deduct_w_pay: 0, deduct_wo_pay: 0, balance: 0 },
+                sl: { earned: 0, deduct_w_pay: 0, deduct_wo_pay: 0, balance: 0 }
             };
 
-            const vlDiff = parseFloat(entry.vl_bal) - runningBalance.vl;
-            const slDiff = parseFloat(entry.sl_bal) - runningBalance.sl;
-
-            if (entry.transaction_type === 'CREDIT' || (vlDiff > 0 && entry.transaction_desc.includes('Accrual'))) {
-                // It's an Accrual
+            if (entry.transaction_type === 'CREDIT' || entry.transaction_desc.includes('Accrual')) {
+                // Monthly Credit: Add earned to BOTH VL and SL
+                const baseEarned = parseFloat(entry.earned || 1.25);
+                runningBalance.vl += baseEarned;
+                runningBalance.sl += baseEarned;
+                row.vl.earned = baseEarned;
+                row.sl.earned = baseEarned;
                 row.period_text = `AS OF ${month}`;
-                row.vl.earned = entry.earned || (vlDiff > 0 ? vlDiff : 0);
-                row.sl.earned = entry.earned || (slDiff > 0 ? slDiff : 0);
-                row.particulars = ''; 
-            } else if (entry.transaction_type === 'LEAVE' || (vlDiff < 0 || slDiff < 0)) {
-                // It's a Leave
-                if (entry.period_text) {
-                    row.period_text = entry.period_text;
-                } else {
-                    const match = entry.transaction_desc.match(/\(([^)]+)\)/);
-                    if (match && match[1] && !match[1].includes('1.25')) {
-                        row.period_text = match[1].replace(/,$/, '').trim();
-                    } else {
-                        row.period_text = `${month} ${day}`;
-                    }
+                row.particulars = 'Monthly Credit';
+
+            } else if (entry.transaction_type === 'LEAVE') {
+                // Leave Deduction: Subtract from the CORRECT leave type only
+                const deductWPay = parseFloat(entry.deducted_with_pay || 0);
+                const deductWOPay = parseFloat(entry.deducted_without_pay || 0);
+                const totalDays = deductWPay + deductWOPay;
+
+                if (entry.leave_type === 'VL') {
+                    runningBalance.vl -= deductWPay;
+                    row.vl.deduct_w_pay = deductWPay;
+                    row.vl.deduct_wo_pay = deductWOPay;
+                } else if (entry.leave_type === 'SL') {
+                    runningBalance.sl -= deductWPay;
+                    row.sl.deduct_w_pay = deductWPay;
+                    row.sl.deduct_wo_pay = deductWOPay;
                 }
 
-                if (entry.transaction_type === 'LEAVE') {
-                    const totalDays = parseFloat(entry.deducted_with_pay) + parseFloat(entry.deducted_without_pay);
-                    row.particulars = `${entry.leave_type} - ${totalDays.toString().replace(/\.0+$/, '')}`;
-                    
-                    if (entry.leave_type === 'VL') {
-                        row.vl.deduct_w_pay = entry.deducted_with_pay;
-                        row.vl.deduct_wo_pay = entry.deducted_without_pay;
-                    } else if (entry.leave_type === 'SL') {
-                        row.sl.deduct_w_pay = entry.deducted_with_pay;
-                        row.sl.deduct_wo_pay = entry.deducted_without_pay;
-                    }
-                } else {
-                    // Fallback particulars for legacy leaves
-                    if (vlDiff < 0) {
-                        row.vl.deduct_w_pay = Math.abs(vlDiff);
-                        row.particulars = `VL - ${Math.abs(vlDiff).toString().replace(/\.0+$/, '')}`;
-                    } else if (slDiff < 0) {
-                        row.sl.deduct_w_pay = Math.abs(slDiff);
-                        row.particulars = `SL - ${Math.abs(slDiff).toString().replace(/\.0+$/, '')}`;
-                    }
+                // Safety: Ensure balance never displays as negative in the calculator
+                if (runningBalance.vl < 0) runningBalance.vl = 0;
+                if (runningBalance.sl < 0) runningBalance.sl = 0;
+
+                row.period_text = entry.period_text || `${month} ${day}`;
+                row.particulars = `${entry.leave_type} - ${parseFloat(totalDays.toFixed(3))}`;
+
+            } else if (entry.transaction_type === 'UNDO') {
+                // UNDO: Restore the deducted days back to the correct leave type
+                const restoredDays = parseFloat(entry.deducted_with_pay || 0);
+                if (entry.leave_type === 'VL') {
+                    runningBalance.vl += restoredDays;
+                    row.vl.earned = restoredDays;
+                } else if (entry.leave_type === 'SL') {
+                    runningBalance.sl += restoredDays;
+                    row.sl.earned = restoredDays;
                 }
+                row.period_text = entry.period_text || `${month} ${day}`;
+                row.particulars = entry.transaction_desc;
+
+            } else {
+                // Manual Update / Adjustment: Trust the database snapshot
+                const dbVl = parseFloat(entry.vl_bal);
+                const dbSl = parseFloat(entry.sl_bal);
+                const vlDiff = dbVl - runningBalance.vl;
+                const slDiff = dbSl - runningBalance.sl;
+
+                // Show the difference as earned or deducted for visual math
+                if (vlDiff > 0.001) row.vl.earned = parseFloat(vlDiff.toFixed(3));
+                else if (vlDiff < -0.001) row.vl.deduct_w_pay = parseFloat(Math.abs(vlDiff).toFixed(3));
+
+                if (slDiff > 0.001) row.sl.earned = parseFloat(slDiff.toFixed(3));
+                else if (slDiff < -0.001) row.sl.deduct_w_pay = parseFloat(Math.abs(slDiff).toFixed(3));
+
+                runningBalance.vl = dbVl;
+                runningBalance.sl = dbSl;
+
+                row.period_text = entry.period_text || `${month} ${day}`;
+                row.particulars = entry.transaction_desc.split('(')[0].trim();
             }
 
-            // Final safety catch for period
-            if (!row.period_text || row.period_text.trim() === '') {
-                row.period_text = `${month} ${day}`;
-            }
-
-            runningBalance.vl = parseFloat(entry.vl_bal);
-            runningBalance.sl = parseFloat(entry.sl_bal);
+            // Set the calculated balance for display
+            row.vl.balance = parseFloat(runningBalance.vl.toFixed(3));
+            row.sl.balance = parseFloat(runningBalance.sl.toFixed(3));
 
             return row;
         });

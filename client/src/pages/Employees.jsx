@@ -26,6 +26,17 @@ const Employees = () => {
   const [accrualMonth, setAccrualMonth] = useState(new Date().getMonth() + 1);
   const [accrualYear, setAccrualYear] = useState(new Date().getFullYear());
 
+  const handleMonthChange = (e) => {
+    const val = parseInt(e.target.value);
+    if (!isNaN(val)) setAccrualMonth(Math.min(12, Math.max(1, val)));
+  };
+
+  const handleYearChange = (e) => {
+    const val = parseInt(e.target.value);
+    const currentYear = new Date().getFullYear();
+    if (!isNaN(val)) setAccrualYear(Math.min(currentYear + 5, Math.max(2000, val)));
+  };
+
   const fetchEmployees = async () => {
     try {
       const { data } = await api.get('/employees');
@@ -126,25 +137,58 @@ const Employees = () => {
       </header>
 
       {/* Accrual Control Box */}
-      <div className="premium-card mb-40 gap-32 flex items-center" style={{ background: 'var(--accent-light)', border: 'none' }}>
-        <div className="flex items-center gap-14">
-           <Send size={22} color="var(--accent)" />
-           <span className="font-bold" style={{ color: 'var(--accent)', fontSize: '1rem' }}>Generate Monthly Credits (1.25)</span>
+      <div className="premium-card mb-40" style={{ background: 'var(--accent-light)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '24px', flexWrap: 'wrap' }}>
+        {/* Label */}
+        <div className="flex items-center gap-14" style={{ flexShrink: 0 }}>
+          <Send size={20} color="var(--accent)" />
+          <span className="font-bold" style={{ color: 'var(--accent)', fontSize: '1rem', whiteSpace: 'nowrap' }}>Generate Monthly Credits (1.25)</span>
         </div>
-        <div className="flex items-center gap-16" style={{ flex: 1 }}>
-          <div className="flex items-center gap-8">
-            <span className="text-small font-bold" style={{ color: 'var(--accent)' }}>MM</span>
-            <input type="number" className="input-field" style={{ width: '80px' }} value={accrualMonth} onChange={e => setAccrualMonth(e.target.value)} disabled={isGenerating} />
+
+        {/* Inputs + Button */}
+        <div className="flex items-center gap-12" style={{ flexShrink: 0 }}>
+
+          {/* Month Input */}
+          <div className="flex flex-col" style={{ gap: '4px' }}>
+            <span className="text-small font-bold" style={{ color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.7rem' }}>Month</span>
+            <input
+              type="number"
+              className="input-field"
+              style={{ width: '72px', fontWeight: 700, textAlign: 'center', border: '1.5px solid var(--accent)', color: 'var(--accent)' }}
+              value={accrualMonth}
+              min={1}
+              max={12}
+              step={1}
+              onChange={handleMonthChange}
+              onBlur={handleMonthChange}
+              disabled={isGenerating}
+            />
           </div>
-          <div className="flex items-center gap-8">
-            <span className="text-small font-bold" style={{ color: 'var(--accent)' }}>YYYY</span>
-            <input type="number" className="input-field" style={{ width: '100px' }} value={accrualYear} onChange={e => setAccrualYear(e.target.value)} disabled={isGenerating} />
+
+          <span style={{ color: 'var(--accent)', fontWeight: 700, fontSize: '1.1rem', paddingTop: '18px' }}>/</span>
+
+          {/* Year Input */}
+          <div className="flex flex-col" style={{ gap: '4px' }}>
+            <span className="text-small font-bold" style={{ color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.7rem' }}>Year</span>
+            <input
+              type="number"
+              className="input-field"
+              style={{ width: '96px', fontWeight: 700, textAlign: 'center', border: '1.5px solid var(--accent)', color: 'var(--accent)' }}
+              value={accrualYear}
+              min={2000}
+              max={new Date().getFullYear() + 5}
+              step={1}
+              onChange={handleYearChange}
+              onBlur={handleYearChange}
+              disabled={isGenerating}
+            />
           </div>
-          <button className="btn-primary" style={{ flex: 1, height: '44px' }} onClick={handleGenerateCredits} disabled={isGenerating}>
+
+          <button className="btn-primary" style={{ height: '44px', padding: '0 28px', whiteSpace: 'nowrap', alignSelf: 'flex-end' }} onClick={handleGenerateCredits} disabled={isGenerating}>
             {isGenerating ? 'Generating...' : 'Confirm Generate'}
           </button>
         </div>
       </div>
+
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '32px' }}>
         {/* Left Side: List */}

@@ -1,8 +1,19 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, Users, Clock, History, LogOut } from 'lucide-react';
+import { useNotification } from '../context/NotificationContext';
 
 const Sidebar = ({ onLogout }) => {
+  const { confirm } = useNotification();
+
+  const handleLogout = async () => {
+    const isConfirmed = await confirm(
+      'Confirm Logout',
+      'Are you sure you want to logout from the system?'
+    );
+    if (isConfirmed) onLogout();
+  };
+
   return (
     <aside className="sidebar">
       <div className="logo-section mb-40" style={{ padding: '0 8px' }}>
@@ -39,7 +50,7 @@ const Sidebar = ({ onLogout }) => {
         </ul>
       </nav>
 
-      <button className="logout-btn" onClick={onLogout}>
+      <button className="logout-btn" onClick={handleLogout}>
         <LogOut size={20} />
         <span>Logout</span>
       </button>

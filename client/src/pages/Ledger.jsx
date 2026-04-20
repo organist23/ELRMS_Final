@@ -53,28 +53,33 @@ const Ledger = () => {
         <p className="text-muted">Complete audit trail of all leave-related transactions and balance adjustments.</p>
       </header>
 
-      <div className="premium-card mb-40">
-        <h3 className="flex items-center gap-10 mb-24 font-bold" style={{ fontSize: '1.25rem' }}>
-           <Clock size={22} color="var(--accent)" />
-           Ledger Filters
+      <div className="premium-card mb-40" style={{ display: 'flex', alignItems: 'center', gap: '24px', flexWrap: 'wrap' }}>
+        {/* Title */}
+        <h3 className="flex items-center gap-10 font-bold" style={{ fontSize: '1rem', flexShrink: 0, whiteSpace: 'nowrap' }}>
+          <Clock size={18} color="var(--accent)" />
+          Ledger Filters
         </h3>
-        <div className="flex items-center gap-16" style={{ flexWrap: 'wrap' }}>
-          <div style={{ position: 'relative', flex: 1, minWidth: '240px' }}>
-            <Search size={18} className="search-icon" />
-            <input 
-              type="text" 
-              className="input-field" 
-              style={{ paddingLeft: '44px' }} 
-              placeholder="Search by name, ID or details..." 
+
+        {/* Controls */}
+        <div className="flex items-center gap-12" style={{ flex: 1, flexWrap: 'wrap' }}>
+          {/* Search */}
+          <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
+            <Search size={16} className="search-icon" />
+            <input
+              type="text"
+              className="input-field"
+              style={{ paddingLeft: '40px' }}
+              placeholder="Search by name, ID or details..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
             />
           </div>
-          
-          <select 
-            className="input-field" 
-            style={{ width: '220px' }} 
-            value={selectedEmpId} 
+
+          {/* Employee Filter */}
+          <select
+            className="input-field"
+            style={{ width: '200px', flexShrink: 0 }}
+            value={selectedEmpId}
             onChange={e => setSelectedEmpId(e.target.value)}
           >
             <option value="">All Employees</option>
@@ -82,31 +87,38 @@ const Ledger = () => {
               <option key={emp.id} value={emp.id}>{emp.full_name}</option>
             ))}
           </select>
-          
-          <div className="flex items-center gap-12" style={{ background: 'var(--primary-light)', padding: '6px 16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
-             <span className="text-small font-bold text-muted" style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>Range</span>
-             <input 
-               type="date" 
-               className="input-field" 
-               style={{ width: '135px', padding: '4px 8px', border: 'none', background: 'transparent', fontWeight: '700' }} 
-               value={startDate}
-               onChange={e => setStartDate(e.target.value)}
-             />
-             <span className="text-muted">→</span>
-             <input 
-               type="date" 
-               className="input-field" 
-               style={{ width: '135px', padding: '4px 8px', border: 'none', background: 'transparent', fontWeight: '700' }} 
-               value={endDate}
-               onChange={e => setEndDate(e.target.value)}
-             />
+
+          {/* Date Range */}
+          <div className="flex items-center gap-8" style={{ background: 'var(--primary-light)', padding: '6px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', flexShrink: 0 }}>
+            <span className="text-small font-bold text-muted" style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>Range</span>
+            <input
+              type="date"
+              className="input-field"
+              style={{ width: '130px', padding: '4px 8px', border: 'none', background: 'transparent', fontWeight: 700 }}
+              value={startDate}
+              onChange={e => setStartDate(e.target.value)}
+            />
+            <span className="text-muted">→</span>
+            <input
+              type="date"
+              className="input-field"
+              style={{ width: '130px', padding: '4px 8px', border: 'none', background: 'transparent', fontWeight: 700 }}
+              value={endDate}
+              onChange={e => setEndDate(e.target.value)}
+            />
           </div>
 
-          <button className="btn-secondary" style={{ padding: '10px 20px' }} onClick={() => { setSelectedEmpId(''); setSearchQuery(''); setStartDate(''); setEndDate(''); }}>
+          {/* Reset */}
+          <button
+            className="btn-secondary"
+            style={{ padding: '10px 20px', flexShrink: 0 }}
+            onClick={() => { setSelectedEmpId(''); setSearchQuery(''); setStartDate(''); setEndDate(''); }}
+          >
             Reset
           </button>
         </div>
       </div>
+
 
       <div className="premium-card">
         <div className="data-table-container">

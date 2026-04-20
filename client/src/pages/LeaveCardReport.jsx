@@ -75,40 +75,31 @@ const LeaveCardReport = () => {
           <h2 className="font-bold text-primary mb-4" style={{ letterSpacing: '0.05em', textTransform: 'uppercase' }}>Employee's Leave Card</h2>
         </div>
 
-        {/* Employee Info Box */}
+        {/* Employee Info Box - Official Layout (3 rows, 6 columns) */}
         <div className="report-info-grid mb-32">
-          <div className="info-item">
-            <span className="info-label">Name</span>
-            <span className="info-value">{employee.full_name}</span>
-          </div>
-          <div className="info-item">
-            <span className="info-label">Civil Status</span>
-            <span className="info-value">{employee.civil_status}</span>
-          </div>
-          <div className="info-item">
-            <span className="info-label">GSIS Policy No.</span>
-            <span className="info-value">{employee.gsis_policy || 'N/A'}</span>
-          </div>
-          <div className="info-item">
-            <span className="info-label">Position</span>
-            <span className="info-value">{employee.position}</span>
-          </div>
-          <div className="info-item">
-            <span className="info-label">Entrance of Duty</span>
-            <span className="info-value">{new Date(employee.entrance_of_duty).toLocaleDateString()}</span>
-          </div>
-          <div className="info-item">
-            <span className="info-label">TIN</span>
-            <span className="info-value">{employee.tin || 'N/A'}</span>
-          </div>
-          <div className="info-item">
-            <span className="info-label">Status</span>
-            <span className="info-value">{employee.status}</span>
-          </div>
-          <div className="info-item">
-            <span className="info-label">Office</span>
-            <span className="info-value">{employee.office}</span>
-          </div>
+          {/* Row 1 */}
+          <div className="info-label-box">Name</div>
+          <div className="info-value-box">{employee.full_name}</div>
+          <div className="info-label-box">Civil Status</div>
+          <div className="info-value-box">{employee.civil_status}</div>
+          <div className="info-label-box">GSIS POLICY NO.</div>
+          <div className="info-value-box">{employee.gsis_policy || 'N/A'}</div>
+
+          {/* Row 2 */}
+          <div className="info-label-box">Position</div>
+          <div className="info-value-box">{employee.position}</div>
+          <div className="info-label-box">Entrance of Duty</div>
+          <div className="info-value-box">{new Date(employee.entrance_of_duty).toLocaleDateString()}</div>
+          <div className="info-label-box">TIN</div>
+          <div className="info-value-box">{employee.tin || 'N/A'}</div>
+
+          {/* Row 3 */}
+          <div className="info-label-box">Status</div>
+          <div className="info-value-box">{employee.status}</div>
+          <div className="info-label-box">Office</div>
+          <div className="info-value-box">{employee.office}</div>
+          <div className="info-label-box">EID</div>
+          <div className="info-value-box">{employee.id}</div>
         </div>
 
         {/* The Card Table */}
@@ -141,17 +132,22 @@ const LeaveCardReport = () => {
                   return Number(num).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 3 });
                 };
 
+                const formatBalance = (num) => {
+                  if (num === null || num === undefined) return '0.000';
+                  return Number(num).toFixed(3);
+                };
+
                 return (
                   <tr key={idx}>
                     <td className="text-center">{row.period_text || ''}</td>
                     <td className="text-small">{row.particulars || ''}</td>
                     <td className="text-center">{formatNum(row.vl?.earned)}</td>
                     <td className="text-center">{formatNum(row.vl?.deduct_w_pay)}</td>
-                    <td className="text-center balance-cell">{formatNum(row.vl?.balance)}</td>
+                    <td className="text-center balance-cell">{formatBalance(row.vl?.balance)}</td>
                     <td className="text-center">{formatNum(row.vl?.deduct_wo_pay)}</td>
                     <td className="text-center">{formatNum(row.sl?.earned)}</td>
                     <td className="text-center">{formatNum(row.sl?.deduct_w_pay)}</td>
-                    <td className="text-center balance-cell">{formatNum(row.sl?.balance)}</td>
+                    <td className="text-center balance-cell">{formatBalance(row.sl?.balance)}</td>
                     <td className="text-center">{formatNum(row.sl?.deduct_wo_pay)}</td>
                     <td className="text-small">{row.remarks || ''}</td>
                   </tr>
@@ -277,33 +273,44 @@ const LeaveCardReport = () => {
 
         .report-info-grid {
           display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          border: 1.5px solid #000;
+          grid-template-columns: 14% 23% 14% 23% 14% 12%;
+          border-left: 1.5px solid #000;
+          border-top: 1.5px solid #000;
+          width: 100%;
+          box-sizing: border-box;
         }
 
-        .info-item {
-          padding: 8px 12px;
+        .report-info-grid * {
+          box-sizing: border-box;
+        }
+
+        .info-label-box {
+          padding: 6px 8px;
           border-right: 1.5px solid #000;
           border-bottom: 1.5px solid #000;
-          display: flex;
-          flex-direction: column;
-        }
-
-        .info-item:nth-child(4n) { border-right: none; }
-        .info-item:nth-child(n+5) { border-bottom: none; }
-
-        .info-label {
           font-size: 0.6rem;
-          text-transform: uppercase;
           font-weight: 700;
-          color: #666;
-          margin-bottom: 2px;
+          text-transform: uppercase;
+          color: #333;
+          background: #fafafa;
+          display: flex;
+          align-items: center;
+          white-space: nowrap;
+          overflow: hidden;
         }
 
-        .info-value {
-          font-size: 0.85rem;
+        .info-value-box {
+          padding: 6px 8px;
+          border-right: 1.5px solid #000;
+          border-bottom: 1.5px solid #000;
+          font-size: 0.8rem;
           font-weight: 700;
           color: #000;
+          display: flex;
+          align-items: center;
+          text-transform: uppercase;
+          word-break: break-word;
+          min-height: 32px;
         }
 
         .leave-card-table-wrapper {
