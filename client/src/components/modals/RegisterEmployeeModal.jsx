@@ -33,14 +33,14 @@ const RegisterEmployeeModal = ({ onClose, onSuccess }) => {
 
   return (
     <div className="modal-overlay">
-      <div className="modal-content fade-in" style={{ maxWidth: '800px' }}>
+      <div className="modal-content fade-in" style={{ width: '98%', maxWidth: '1400px', padding: '40px' }}>
         <div className="flex-between mb-32">
           <h2 className="font-bold" style={{ fontSize: '1.5rem' }}>Register New Employee</h2>
           <button onClick={onClose} className="icon-btn"><X size={24} /></button>
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
             <div className="form-group">
               <label>Employee ID (EID)</label>
               <input type="text" className="input-field" placeholder="EMP-2026-001" required value={formData.id} onChange={e => setFormData({ ...formData, id: e.target.value })} />
@@ -92,7 +92,7 @@ const RegisterEmployeeModal = ({ onClose, onSuccess }) => {
               </select>
             </div>
 
-            <div style={{ gridColumn: 'span 2', background: 'var(--accent-light)', padding: '24px', borderRadius: 'var(--radius)', marginTop: '8px', border: '1px solid var(--accent)' }}>
+            <div style={{ gridColumn: 'span 3', background: 'var(--accent-light)', padding: '24px', borderRadius: 'var(--radius)', marginTop: '8px', border: '1px solid var(--accent)' }}>
               <h4 className="font-bold mb-16" style={{ color: 'var(--accent)', textTransform: 'uppercase', fontSize: '0.8rem', letterSpacing: '0.05em' }}>Initial Balances (Brought Forward)</h4>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                 <div className="form-group">

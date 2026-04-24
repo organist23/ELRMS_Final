@@ -32,7 +32,7 @@ const EditEmployeeModal = ({ employee, onClose, onSuccess }) => {
 
   return (
     <div className="modal-overlay">
-      <div className="modal-content fade-in" style={{ maxWidth: '800px' }}>
+      <div className="modal-content fade-in" style={{ width: '98%', maxWidth: '1400px', padding: '40px' }}>
         <div className="flex-between mb-32">
           <div>
             <h2 className="font-bold mb-4" style={{ fontSize: '1.5rem' }}>Edit Employee Profile</h2>
@@ -42,7 +42,7 @@ const EditEmployeeModal = ({ employee, onClose, onSuccess }) => {
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
             <div className="form-group">
               <label className="label">Full Name</label>
               <input type="text" className="input-field" required value={formData.full_name} onChange={e => setFormData({...formData, full_name: e.target.value})} />
@@ -87,7 +87,7 @@ const EditEmployeeModal = ({ employee, onClose, onSuccess }) => {
 
             {/* Editable Balances */}
             {/* Editable Balances */}
-            <div style={{ gridColumn: 'span 2', background: 'var(--accent-light)', padding: '24px', borderRadius: 'var(--radius)', marginTop: '8px', border: '1px solid var(--accent)' }}>
+            <div style={{ gridColumn: 'span 3', background: 'var(--accent-light)', padding: '24px', borderRadius: 'var(--radius)', marginTop: '8px', border: '1px solid var(--accent)' }}>
                <h4 className="font-bold mb-16" style={{ color: 'var(--accent)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                  Manual Balance Adjustment (VL/SL Only)
                </h4>
