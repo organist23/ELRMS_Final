@@ -66,6 +66,10 @@ const LeaveCardReport = () => {
               {availableYears.map(y => <option key={y} value={y}>Year {y}</option>)}
             </select>
           </div>
+
+          <button className="btn-primary flex items-center gap-10" onClick={handlePrint}>
+            <Printer size={18} /> Print Report
+          </button>
         </div>
       </div>
 
@@ -137,10 +141,12 @@ const LeaveCardReport = () => {
                   return Number(num).toFixed(3);
                 };
 
+                const isSpecialRow = row.particulars?.includes('Monthly Credit') || row.particulars?.includes('UNDO APPROVAL');
+
                 return (
                   <tr key={idx}>
                     <td className="text-center">{row.period_text || ''}</td>
-                    <td className="text-small">{row.particulars || ''}</td>
+                    <td className="text-small">{isSpecialRow ? '' : (row.particulars || '')}</td>
                     <td className="text-center">{formatNum(row.vl?.earned)}</td>
                     <td className="text-center">{formatNum(row.vl?.deduct_w_pay)}</td>
                     <td className="text-center balance-cell">{formatBalance(row.vl?.balance)}</td>
@@ -149,7 +155,7 @@ const LeaveCardReport = () => {
                     <td className="text-center">{formatNum(row.sl?.deduct_w_pay)}</td>
                     <td className="text-center balance-cell">{formatBalance(row.sl?.balance)}</td>
                     <td className="text-center">{formatNum(row.sl?.deduct_wo_pay)}</td>
-                    <td className="text-small">{row.remarks || ''}</td>
+                    <td className="text-small">{isSpecialRow ? row.particulars : (row.remarks || '')}</td>
                   </tr>
                 );
               })}
@@ -267,7 +273,6 @@ const LeaveCardReport = () => {
           border-radius: 8px;
           box-shadow: 0 4px 20px rgba(0,0,0,0.05);
           width: 100%;
-          min-height: 1000px;
           color: #000;
         }
 
@@ -390,20 +395,42 @@ const LeaveCardReport = () => {
         }
 
         @media print {
-          @page { size: A4 landscape; margin: 8mm; }
+          @page { 
+            size: A4 landscape; 
+            margin: 5mm; 
+          }
+          body { 
+            background: none !important; 
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+          /* Completely hide other dashboard elements like Sidebar/Navbar */
+          nav, aside, .sidebar, .navbar, .no-print { 
+            display: none !important; 
+          }
+          
+          .fade-in { padding: 0 !important; margin: 0 !important; }
+          
+          .leave-card-print-container {
+            width: 287mm !important; /* Maximized width for landscape */
+            margin: 0 auto !important;
+            padding: 10px !important;
+            box-shadow: none !important;
+            border: 1px solid #eee !important;
+            border-radius: 0 !important;
+            display: block !important;
+          }
+          
+          /* Prevent any accidental blank pages between the two cards */
+          .leave-card-print-container + .leave-card-print-container {
+            margin-top: 10mm !important;
+            page-break-before: always;
+          }
+
           body * { visibility: hidden; }
           .leave-card-print-container, .leave-card-print-container * {
-            visibility: visible;
+            visibility: visible !important;
           }
-          .leave-card-print-container {
-            position: relative;
-            padding: 0;
-            margin-bottom: 40px;
-            box-shadow: none;
-            border: none;
-            page-break-after: auto;
-          }
-          .no-print { display: none !important; }
         }
       `}} />
     </div>

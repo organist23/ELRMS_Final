@@ -2,11 +2,42 @@
   "name": "elrms_final",
   "version": "1.0.0",
   "description": "This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.",
-  "main": "index.js",
+  "main": "main.js",
   "scripts": {
     "start": "concurrently \"cd server && node index.js\" \"cd client && npm run dev\"",
     "dev": "concurrently \"cd server && npm run dev\" \"cd client && npm run dev\"",
+    "electron:dev": "concurrently \"cd client && npm run dev\" \"cd server && node index.js\" \"wait-on http://localhost:5173 && electron .\"",
+    "client:build": "cd client && npm run build",
+    "electron:build": "npm run client:build && electron-builder",
     "install:all": "npm install && cd server && npm install && cd client && npm install"
+  },
+  "build": {
+    "appId": "com.elrms.app",
+    "productName": "ELRMS",
+    "directories": {
+      "output": "dist_electron"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "server/**/*",
+      "client/dist/**/*",
+      "package.json",
+      "node_modules/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "server/.env",
+        "to": ".env"
+      }
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
   },
   "repository": {
     "type": "git",
@@ -20,6 +51,9 @@
   },
   "homepage": "https://github.com/organist23/ELRMS_Final#readme",
   "devDependencies": {
-    "concurrently": "^9.2.1"
+    "concurrently": "^9.2.1",
+    "electron": "^41.2.2",
+    "electron-builder": "^26.8.1",
+    "wait-on": "^9.0.5"
   }
 }
