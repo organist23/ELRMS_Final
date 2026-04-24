@@ -5,7 +5,7 @@ import { useNotification } from '../../context/NotificationContext';
 
 const RegisterEmployeeModal = ({ onClose, onSuccess }) => {
   const { showToast } = useNotification();
-  const [formData, setFormData] = useState({
+  const initialFormState = {
     id: '',
     full_name: '',
     civil_status: 'SINGLE',
@@ -17,15 +17,17 @@ const RegisterEmployeeModal = ({ onClose, onSuccess }) => {
     office: '',
     initial_vl: '',
     initial_sl: ''
-  });
+  };
+
+  const [formData, setFormData] = useState(initialFormState);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       await api.post('/employees', formData);
-      showToast('Employee registered successfully', 'success');
-      onSuccess();
-      onClose();
+      showToast('Employee registered successfully!', 'success');
+      setFormData(initialFormState); // Reset form for next entry
+      onSuccess(); // Refresh the list in background
     } catch (err) {
       showToast(err.response?.data?.error || 'Failed to register employee', 'error');
     }
@@ -72,11 +74,23 @@ const RegisterEmployeeModal = ({ onClose, onSuccess }) => {
             </div>
             <div className="form-group">
               <label className="label">GSIS Policy No.</label>
-              <input type="text" className="input-field" placeholder="2001556677" value={formData.gsis_policy} onChange={e => setFormData({ ...formData, gsis_policy: e.target.value })} />
+              <input 
+                type="text" 
+                className="input-field" 
+                placeholder="2001556677" 
+                value={formData.gsis_policy} 
+                onChange={e => setFormData({ ...formData, gsis_policy: e.target.value.replace(/[^0-9]/g, '') })} 
+              />
             </div>
             <div className="form-group">
               <label className="label">TIN</label>
-              <input type="text" className="input-field" placeholder="123-456-789" value={formData.tin} onChange={e => setFormData({ ...formData, tin: e.target.value })} />
+              <input 
+                type="text" 
+                className="input-field" 
+                placeholder="123-456-789" 
+                value={formData.tin} 
+                onChange={e => setFormData({ ...formData, tin: e.target.value.replace(/[^0-9-]/g, '') })} 
+              />
             </div>
             <div className="form-group">
               <label className="label">Status</label>

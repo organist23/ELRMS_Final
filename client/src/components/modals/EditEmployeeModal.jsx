@@ -78,11 +78,21 @@ const EditEmployeeModal = ({ employee, onClose, onSuccess }) => {
             </div>
             <div className="form-group">
               <label className="label">GSIS Policy No.</label>
-              <input type="text" className="input-field" value={formData.gsis_policy} onChange={e => setFormData({...formData, gsis_policy: e.target.value})} />
+              <input 
+                type="text" 
+                className="input-field" 
+                value={formData.gsis_policy} 
+                onChange={e => setFormData({ ...formData, gsis_policy: e.target.value.replace(/[^0-9]/g, '') })} 
+              />
             </div>
             <div className="form-group">
               <label className="label">TIN</label>
-              <input type="text" className="input-field" value={formData.tin} onChange={e => setFormData({...formData, tin: e.target.value})} />
+              <input 
+                type="text" 
+                className="input-field" 
+                value={formData.tin} 
+                onChange={e => setFormData({ ...formData, tin: e.target.value.replace(/[^0-9-]/g, '') })} 
+              />
             </div>
 
             {/* Editable Balances */}
