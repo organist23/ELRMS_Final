@@ -5,7 +5,7 @@ import { useNotification } from '../../context/NotificationContext';
 
 const RegisterEmployeeModal = ({ onClose, onSuccess }) => {
   const { showToast } = useNotification();
-  const [formData, setFormData] = useState({
+  const initialFormState = {
     id: '',
     full_name: '',
     civil_status: 'SINGLE',
@@ -17,15 +17,17 @@ const RegisterEmployeeModal = ({ onClose, onSuccess }) => {
     office: '',
     initial_vl: '',
     initial_sl: ''
-  });
+  };
+
+  const [formData, setFormData] = useState(initialFormState);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       await api.post('/employees', formData);
-      showToast('Employee registered successfully', 'success');
-      onSuccess();
-      onClose();
+      showToast('Employee registered successfully!', 'success');
+      setFormData(initialFormState); // Reset form for next entry
+      onSuccess(); // Refresh the list in background
     } catch (err) {
       showToast(err.response?.data?.error || 'Failed to register employee', 'error');
     }
@@ -33,14 +35,14 @@ const RegisterEmployeeModal = ({ onClose, onSuccess }) => {
 
   return (
     <div className="modal-overlay">
-      <div className="modal-content fade-in" style={{ maxWidth: '800px' }}>
+      <div className="modal-content fade-in" style={{ width: '98%', maxWidth: '1400px', padding: '40px' }}>
         <div className="flex-between mb-32">
           <h2 className="font-bold" style={{ fontSize: '1.5rem' }}>Register New Employee</h2>
           <button onClick={onClose} className="icon-btn"><X size={24} /></button>
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
             <div className="form-group">
               <label>Employee ID (EID)</label>
               <input type="text" className="input-field" placeholder="EMP-2026-001" required value={formData.id} onChange={e => setFormData({ ...formData, id: e.target.value })} />
@@ -72,11 +74,23 @@ const RegisterEmployeeModal = ({ onClose, onSuccess }) => {
             </div>
             <div className="form-group">
               <label className="label">GSIS Policy No.</label>
-              <input type="text" className="input-field" placeholder="2001556677" value={formData.gsis_policy} onChange={e => setFormData({ ...formData, gsis_policy: e.target.value })} />
+              <input 
+                type="text" 
+                className="input-field" 
+                placeholder="2001556677" 
+                value={formData.gsis_policy} 
+                onChange={e => setFormData({ ...formData, gsis_policy: e.target.value.replace(/[^0-9]/g, '') })} 
+              />
             </div>
             <div className="form-group">
               <label className="label">TIN</label>
-              <input type="text" className="input-field" placeholder="123-456-789" value={formData.tin} onChange={e => setFormData({ ...formData, tin: e.target.value })} />
+              <input 
+                type="text" 
+                className="input-field" 
+                placeholder="123-456-789" 
+                value={formData.tin} 
+                onChange={e => setFormData({ ...formData, tin: e.target.value.replace(/[^0-9-]/g, '') })} 
+              />
             </div>
             <div className="form-group">
               <label className="label">Status</label>
@@ -92,7 +106,7 @@ const RegisterEmployeeModal = ({ onClose, onSuccess }) => {
               </select>
             </div>
 
-            <div style={{ gridColumn: 'span 2', background: 'var(--accent-light)', padding: '24px', borderRadius: 'var(--radius)', marginTop: '8px', border: '1px solid var(--accent)' }}>
+            <div style={{ gridColumn: 'span 3', background: 'var(--accent-light)', padding: '24px', borderRadius: 'var(--radius)', marginTop: '8px', border: '1px solid var(--accent)' }}>
               <h4 className="font-bold mb-16" style={{ color: 'var(--accent)', textTransform: 'uppercase', fontSize: '0.8rem', letterSpacing: '0.05em' }}>Initial Balances (Brought Forward)</h4>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                 <div className="form-group">

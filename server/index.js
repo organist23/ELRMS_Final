@@ -115,9 +115,15 @@ app.put('/api/employees/:id', async (req, res) => {
             const b = b_rows[0];
             const desc = `Manual Update: ${full_name}'s balances adjusted by Admin. (Old VL: ${parseFloat(old_vl).toFixed(3)}, Old SL: ${parseFloat(old_sl).toFixed(3)})`;
             
+            // Determine which leave was updated for the leave_type column
+            let updatedTypes = [];
+            if (parseFloat(old_vl) !== parseFloat(vacation_leave)) updatedTypes.push('VL');
+            if (parseFloat(old_sl) !== parseFloat(sick_leave)) updatedTypes.push('SL');
+            const leaveTypeLabel = updatedTypes.join('/') || 'ADJUSTMENT';
+
             await connection.execute(
-                'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                [req.params.id, desc, b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave]
+                'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, transaction_type, leave_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                [req.params.id, desc, b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, 'MANUAL', leaveTypeLabel]
             );
         }
 
@@ -239,7 +245,8 @@ app.post('/api/leaves/approve', async (req, res) => {
         const field = field_map[app_data.leave_type];
         
         // --- Split Pay Math ---
-        const [balances] = await connection.execute('SELECT * FROM leave_balances WHERE employee_id = ?', [app_data.employee_id]);
+        // ADDED 'FOR UPDATE' TO PREVENT RACE CONDITIONS
+        const [balances] = await connection.execute('SELECT * FROM leave_balances WHERE employee_id = ? FOR UPDATE', [app_data.employee_id]);
         const bal = balances[0];
         const current_val = parseFloat(bal[field] || 0);
         const requested_days = parseFloat(app_data.num_days || 0);
@@ -317,9 +324,8 @@ app.post('/api/leaves/undo', async (req, res) => {
         const [new_bal] = await connection.execute('SELECT * FROM leave_balances WHERE employee_id = ?', [app_data.employee_id]);
         const b = new_bal[0];
 
-        // Build short leave type code (e.g. 'SL', 'VL') from the full name
-        // Build short leave type code ('SL' or 'VL') from the full name
-        const leaveTypeCode = app_data.leave_type.includes('Sick') ? 'SL' : 'VL';
+        // Build short leave type code consistently with the Approval logic
+        const leaveTypeCode = app_data.leave_type === 'Vacation Leave' ? 'VL' : (app_data.leave_type === 'Sick Leave' ? 'SL' : app_data.leave_type);
         const restoredDays = parseFloat(app_data.with_pay);
 
         await connection.execute(
@@ -370,22 +376,28 @@ app.post('/api/accrual/generate', async (req, res) => {
         // 3. Log into accrual_logs
         await connection.execute('INSERT INTO accrual_logs (month, year) VALUES (?, ?)', [month, year]);
 
-        // 4. Log into Ledger for active employees
-        const [emps] = await connection.execute(`
-            SELECT lb.employee_id 
+        // 4. PREPARE & EXECUTE BULK LEDGER INSERT
+        const [balances] = await connection.execute(`
+            SELECT lb.* 
             FROM leave_balances lb
             JOIN employees e ON lb.employee_id = e.id
             WHERE e.is_active = 1
         `);
-        for (const emp of emps) {
-            const [b_rows] = await connection.execute('SELECT * FROM leave_balances WHERE employee_id = ?', [emp.employee_id]);
-            const b = b_rows[0];
+
+        if (balances.length > 0) {
             const monthNames = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
             const periodText = `AS OF ${monthNames[month - 1]}`;
+            
+            const ledgerRows = balances.map(b => [
+                b.employee_id, 
+                `Monthly Accrual: ${month}/${year} (+1.25 VL/SL)`, 
+                b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, 
+                'CREDIT', 1.25, 'Monthly Credit', periodText
+            ]);
 
-            await connection.execute(
-                'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, transaction_type, earned, remarks, period_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                [emp.employee_id, `Monthly Accrual: ${month}/${year} (+1.25 VL/SL)`, b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, 'CREDIT', 1.25, 'Monthly Credit', periodText]
+            await connection.query(
+                'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, transaction_type, earned, remarks, period_text) VALUES ?',
+                [ledgerRows]
             );
         }
 
@@ -430,27 +442,39 @@ app.post('/api/accrual/rollover', async (req, res) => {
             WHERE e.is_active = 1
         `);
 
-        // 3. Log in ledger and Archive snapshots for active employees
-        const [emps] = await connection.execute(`
-            SELECT lb.employee_id 
+        // 3. PREPARE & EXECUTE BULK LEDGER & ARCHIVE INSERTS
+        const [balances] = await connection.execute(`
+            SELECT lb.* 
             FROM leave_balances lb
             JOIN employees e ON lb.employee_id = e.id
             WHERE e.is_active = 1
         `);
-        for (const emp of emps) {
-            const [b_rows] = await connection.execute('SELECT * FROM leave_balances WHERE employee_id = ?', [emp.employee_id]);
-            const b = b_rows[0];
-            
-            // Ledger entry
-            await connection.execute(
-                'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, transaction_type, remarks, period_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                [emp.employee_id, `Yearly Initialization (${from_year} -> ${to_year}): Balances Forwarded & Privilege Leaves Reset`, b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, 'ROLLOVER', `Yearly Rollover ${from_year} to ${to_year}`, to_year]
+
+        if (balances.length > 0) {
+            // A. Bulk Ledger Rows
+            const ledgerRows = balances.map(b => [
+                b.employee_id, 
+                `Yearly Initialization (${from_year} -> ${to_year}): Balances Forwarded & Privilege Leaves Reset`, 
+                b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, 
+                'ROLLOVER', `Yearly Rollover ${from_year} to ${to_year}`, to_year.toString()
+            ]);
+
+            await connection.query(
+                'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, transaction_type, remarks, period_text) VALUES ?',
+                [ledgerRows]
             );
 
-            // History Archive entry
-            await connection.execute(
-                'INSERT INTO yearly_credits_archive (employee_id, year, vl_forwarded, sl_forwarded) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE vl_forwarded = VALUES(vl_forwarded), sl_forwarded = VALUES(sl_forwarded)',
-                [emp.employee_id, from_year, b.forwarded_vl, b.forwarded_sl]
+            // B. Bulk Yearly Credits Archive Rows (Using ON DUPLICATE KEY logic)
+            const archiveRows = balances.map(b => [
+                b.employee_id, 
+                from_year, 
+                b.forwarded_vl, 
+                b.forwarded_sl
+            ]);
+
+            await connection.query(
+                'INSERT INTO yearly_credits_archive (employee_id, year, vl_forwarded, sl_forwarded) VALUES ? ON DUPLICATE KEY UPDATE vl_forwarded = VALUES(vl_forwarded), sl_forwarded = VALUES(sl_forwarded)',
+                [archiveRows]
             );
         }
 
@@ -643,27 +667,33 @@ app.get('/api/employees/:id/leave-card/:year', async (req, res) => {
             [id, year]
         );
 
-        // A. Filter for VL/SL Rows (already implemented)
+        // A. Filter for VL/SL Rows (IMPROVED: DATA-FIRST APPROACH)
         const vlSlEntries = ledgerRows.filter(entry => {
             // Skip entries that were already part of the starting balance calculation
             if (entry.id <= cutoffLedgerId) return false;
 
-            const desc = entry.transaction_desc.toLowerCase();
             const type = entry.transaction_type;
-            const isSystem = type === 'REGISTRATION' || type === 'ROLLOVER' || 
-                             desc.includes('rollover') || desc.includes('registration') || desc.includes('initialization');
+            const leaveType = entry.leave_type || ''; // Metadata column
+            const desc = (entry.transaction_desc || '').toLowerCase(); // Fallback description
             
-            const isPrivilege = desc.includes('special leave') || desc.includes('force leave') || 
-                                desc.includes('wellness') || desc.includes('solo parent');
+            // Registration and Rollover entries are system entries
+            const isSystem = type === 'REGISTRATION' || type === 'ROLLOVER';
+            
+            // Check if it's a privilege leave using the reliable leave_type column
+            // Fallback to string matching for older records
+            const isPrivilege = ['Special Leave', 'Force Leave', 'Wellness Leave', 'Solo Parent Leave'].includes(leaveType) ||
+                                (leaveType === '' && (desc.includes('special leave') || desc.includes('force leave') || desc.includes('wellness') || desc.includes('solo parent')));
 
             return !isSystem && !isPrivilege;
         });
 
-        // B. Filter for Privilege Rows (NEW)
+        // B. Filter for Privilege Rows (IMPROVED: DATA-FIRST APPROACH)
         const privilegeEntries = ledgerRows.filter(entry => {
-            const desc = entry.transaction_desc.toLowerCase();
-            return desc.includes('special leave') || desc.includes('force leave') || 
-                   desc.includes('wellness') || desc.includes('solo parent');
+            const leaveType = entry.leave_type || '';
+            const desc = (entry.transaction_desc || '').toLowerCase();
+            
+            return ['Special Leave', 'Force Leave', 'Wellness Leave', 'Solo Parent Leave'].includes(leaveType) ||
+                   (leaveType === '' && (desc.includes('special leave') || desc.includes('force leave') || desc.includes('wellness') || desc.includes('solo parent')));
         });
 
         let runningBalance = { vl: parseFloat(startingBalance.vl), sl: parseFloat(startingBalance.sl) };
@@ -693,7 +723,7 @@ app.get('/api/employees/:id/leave-card/:year', async (req, res) => {
                 sl: { earned: 0, deduct_w_pay: 0, deduct_wo_pay: 0, balance: 0 }
             };
 
-            if (entry.transaction_type === 'CREDIT' || entry.transaction_desc.includes('Accrual')) {
+            if (entry.transaction_type === 'CREDIT') {
                 // Monthly Credit: Add earned to BOTH VL and SL
                 const baseEarned = parseFloat(entry.earned || 1.25);
                 runningBalance.vl += baseEarned;
