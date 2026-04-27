@@ -114,22 +114,30 @@ const EditEmployeeModal = ({ employee, onClose, onSuccess }) => {
                
                {/* Read Only Privilege Credits */}
                <h4 className="font-bold mb-12 text-muted" style={{ fontSize: '0.75rem', textTransform: 'uppercase', opacity: 0.8 }}>View-Only: Privilege Credits (Annual Limits)</h4>
-               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '12px' }}>
                   <div style={{ background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
                     <div className="label mb-4" style={{ fontSize: '0.6rem' }}>SPECIAL</div>
-                    <div className="font-bold">{Number(employee.special_leave)}</div>
+                    <div className="font-bold">{Number(employee.special_leave)} / 3</div>
                   </div>
                   <div style={{ background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
                     <div className="label mb-4" style={{ fontSize: '0.6rem' }}>FORCE</div>
-                    <div className="font-bold">{Number(employee.force_leave)}</div>
+                    <div className="font-bold">{Number(employee.force_leave)} / 5</div>
                   </div>
                   <div style={{ background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
                     <div className="label mb-4" style={{ fontSize: '0.6rem' }}>WELLNESS</div>
-                    <div className="font-bold">{Number(employee.wellness_leave)}</div>
+                    <div className="font-bold">{Number(employee.wellness_leave)} / 5</div>
                   </div>
                   <div style={{ background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                    <div className="label mb-4" style={{ fontSize: '0.6rem' }}>SOLO</div>
-                    <div className="font-bold">{Number(employee.solo_parent_leave)}</div>
+                    <div className="label mb-4" style={{ fontSize: '0.6rem' }}>SOLO PARENT</div>
+                    <div className="font-bold">{Number(employee.solo_parent_leave)} / 7</div>
+                  </div>
+                  <div style={{ background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                    <div className="label mb-4" style={{ fontSize: '0.6rem' }}>MATERNITY</div>
+                    <div className="font-bold">{Number(employee.maternity_leave)} / 105</div>
+                  </div>
+                  <div style={{ background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                    <div className="label mb-4" style={{ fontSize: '0.6rem' }}>MOURNING</div>
+                    <div className="font-bold">{Number(employee.mourning_leave)} / 3</div>
                   </div>
                </div>
             </div>
