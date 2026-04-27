@@ -28,11 +28,17 @@ const Leaves = () => {
     fetchData();
   }, []);
 
-  const handleAction = async (id, action) => {
-    const isConfirmed = await confirm(
-      'Confirm Action',
-      `Are you sure you want to ${action} this leave application? This will update employee balances and creates a ledger record.`
-    );
+  const handleAction = async (id, action, leave = null) => {
+    let confirmTitle = 'Confirm Action';
+    let confirmMsg = `Are you sure you want to ${action} this leave application? This will update employee balances and creates a ledger record.`;
+
+    // Special confirmation for Force Leave rejection
+    if (action === 'reject' && leave?.leave_type === 'Force Leave') {
+      confirmTitle = 'Exigency of Service';
+      confirmMsg = `Exigency of service: the ${Number(leave.num_days)} day(s) of Force Leave will be transferred to the VL. Proceed?`;
+    }
+
+    const isConfirmed = await confirm(confirmTitle, confirmMsg);
     if (!isConfirmed) return;
 
     try {
@@ -82,8 +88,8 @@ const Leaves = () => {
                     </td>
                     <td>
                       <div style={{ display: 'flex', gap: '8px' }}>
-                        <button className="btn-primary" style={{ padding: '8px 16px', background: 'var(--success)', fontSize: '0.8125rem' }} onClick={() => handleAction(leave.id, 'approve')}>Approve</button>
-                        <button className="btn-primary" style={{ padding: '8px 16px', background: 'var(--danger)', fontSize: '0.8125rem' }} onClick={() => handleAction(leave.id, 'reject')}>Reject</button>
+                        <button className="btn-primary" style={{ padding: '8px 16px', background: 'var(--success)', fontSize: '0.8125rem' }} onClick={() => handleAction(leave.id, 'approve', leave)}>Approve</button>
+                        <button className="btn-primary" style={{ padding: '8px 16px', background: 'var(--danger)', fontSize: '0.8125rem' }} onClick={() => handleAction(leave.id, 'reject', leave)}>Reject</button>
                       </div>
                     </td>
                   </tr>

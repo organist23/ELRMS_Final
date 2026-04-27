@@ -16,7 +16,7 @@ const EncodeLeaveModal = ({ employee, onClose, onSuccess }) => {
   });
 
   const earnedLeaves = ['Vacation Leave', 'Sick Leave'];
-  const privilegeLeaves = ['Special Leave', 'Force Leave', 'Wellness Leave', 'Solo Parent Leave'];
+  const privilegeLeaves = ['Special Leave', 'Force Leave', 'Wellness Leave', 'Solo Parent Leave', 'Maternity Leave', 'Mourning Leave'];
 
   // Smart Parser for non-contiguous dates
   const parseInclusiveDates = (str) => {
@@ -75,8 +75,14 @@ const EncodeLeaveModal = ({ employee, onClose, onSuccess }) => {
     setLeaveData(newData);
   };
 
+  // Wellness Leave first-application policy check
+  // First application = balance is still at full default (5 days)
+  const isFirstWellness = leaveData.leave_type === 'Wellness Leave' && Number(employee.wellness_leave) === 5;
+  const wellnessWarning = isFirstWellness && (leaveData.num_days > 3 || leaveData.num_days < 1);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (wellnessWarning) return; // Guard: should not submit while warning is shown
     try {
       await api.post('/leaves/apply', leaveData);
       showToast('Leave application submitted for approval', 'success');
@@ -156,8 +162,14 @@ const EncodeLeaveModal = ({ employee, onClose, onSuccess }) => {
               className="input-field" 
               required 
               value={leaveData.num_days} 
+              style={{ borderColor: wellnessWarning ? '#dc2626' : '' }}
               onChange={e => setLeaveData({...leaveData, num_days: parseFloat(e.target.value)})} 
             />
+            {wellnessWarning && (
+              <p style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '6px', fontWeight: 600, lineHeight: 1.4 }}>
+                ⚠ Wellness Leave Policy: The first application is limited to a maximum of 3 days (minimum of 1 day).
+              </p>
+            )}
           </div>
 
           <div className="form-group">
@@ -173,7 +185,12 @@ const EncodeLeaveModal = ({ employee, onClose, onSuccess }) => {
 
           <div className="flex-between" style={{ marginTop: '40px', gap: '16px' }}>
             <button type="button" className="btn-secondary" style={{ flex: 1 }} onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn-primary" style={{ flex: 1.5 }}>
+            <button 
+              type="submit" 
+              className="btn-primary" 
+              style={{ flex: 1.5, opacity: wellnessWarning ? 0.5 : 1, cursor: wellnessWarning ? 'not-allowed' : 'pointer' }}
+              disabled={wellnessWarning}
+            >
               <Calendar size={18} />
               Submit Application
             </button>

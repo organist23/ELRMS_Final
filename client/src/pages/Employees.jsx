@@ -329,6 +329,14 @@ const Employees = () => {
                        <div className="label mb-4" style={{ fontSize: '0.55rem', opacity: 0.7 }}>SOLO PARENT</div>
                        <div className="font-bold" style={{ fontSize: '0.9rem' }}>{Number(selectedEmp.solo_parent_leave || 0)} / 7</div>
                     </div>
+                    <div style={{ padding: '8px 12px', border: '1px solid var(--border)', borderRadius: '8px' }}>
+                       <div className="label mb-4" style={{ fontSize: '0.55rem', opacity: 0.7 }}>MATERNITY</div>
+                       <div className="font-bold" style={{ fontSize: '0.9rem' }}>{Number(selectedEmp.maternity_leave || 0)} / 105</div>
+                    </div>
+                    <div style={{ padding: '8px 12px', border: '1px solid var(--border)', borderRadius: '8px' }}>
+                       <div className="label mb-4" style={{ fontSize: '0.55rem', opacity: 0.7 }}>MOURNING</div>
+                       <div className="font-bold" style={{ fontSize: '0.9rem' }}>{Number(selectedEmp.mourning_leave || 0)} / 3</div>
+                    </div>
                  </div>
 
                  {yearlyHistory.length > 0 && (
