@@ -187,6 +187,10 @@ app.post('/api/leaves/apply', async (req, res) => {
         const clean_from = date_from || null;
         const clean_to = date_to || null;
 
+        if (clean_from && clean_to && new Date(clean_to) < new Date(clean_from)) {
+            return res.status(400).json({ error: 'Invalid Date Range: "Date To" cannot be earlier than "Date From".' });
+        }
+
         // Validation check for privileges
         const [balanceRows] = await db.execute('SELECT * FROM leave_balances WHERE employee_id = ?', [employee_id]);
         if (balanceRows.length === 0) return res.status(404).json({ error: 'Employee balance not found' });
@@ -379,12 +383,10 @@ app.post('/api/leaves/reject', async (req, res) => {
             const [new_bal] = await connection.execute('SELECT * FROM leave_balances WHERE employee_id = ?', [app_data.employee_id]);
             const b = new_bal[0];
 
-            // 4. Insert a TRANSFER ledger entry
-            //    - transaction_type = 'TRANSFER' → falls into the else/MANUAL branch of the report
-            //    - leave_type = 'VL' → the report knows to route this to the VL card
-            //    - earned = transferDays → shows as earned in the VL Earned column
-            //    - remarks → shows "Exigency of Service" message in the Remarks column
-            //    - vl_bal snapshot → the report's diff calculation computes the correct VL earned amount
+            // 4. DOUBLE ENTRY LEDGER SYSTEM:
+            
+            // ENTRY A: Updates the VL Card (The "Credit")
+            // Routes to VL Card via leave_type='VL'. Shows as "Earned" via balance diff.
             await connection.execute(
                 'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, mat_bal, mor_bal, transaction_type, leave_type, earned, remarks, period_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                 [
@@ -395,6 +397,22 @@ app.post('/api/leaves/reject', async (req, res) => {
                     'VL',
                     transferDays,
                     'Exigency of Service: Force Leave transferred to VL',
+                    app_data.inclusive_dates || null
+                ]
+            );
+
+            // ENTRY B: Updates the Privilege Card (The "Debit")
+            // Routes to Privilege Card via leave_type='Force Leave'. Shows as "Absence w/ Pay" via balance diff.
+            await connection.execute(
+                'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, mat_bal, mor_bal, transaction_type, leave_type, earned, remarks, period_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                [
+                    app_data.employee_id,
+                    'VL Transfer (Force Leave Rejected)',
+                    b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.maternity_leave, b.mourning_leave,
+                    'TRANSFER',
+                    'Force Leave',
+                    0,
+                    'Exigency of Service: Transferred to VL',
                     app_data.inclusive_dates || null
                 ]
             );
@@ -423,6 +441,16 @@ app.post('/api/accrual/generate', async (req, res) => {
         // 1. Check if already generated
         const [logs] = await connection.execute('SELECT * FROM accrual_logs WHERE month = ? AND year = ?', [month, year]);
         if (logs.length > 0) throw new Error('Credits already generated for this month and year');
+
+        // 2. CHECK: Yearly Rollover for previous year must be completed
+        const prevYear = parseInt(year) - 1;
+        const [rolloverCheck] = await connection.execute(
+            'SELECT * FROM yearly_action_logs WHERE action_type = "ROLLOVER" AND year = ?',
+            [prevYear]
+        );
+        if (rolloverCheck.length === 0) {
+            throw new Error(`Cannot generate credits for ${year}. The Yearly Rollover for ${prevYear} is still pending.`);
+        }
 
         // 2. Add 1.25 to all active employees
         await connection.execute(`
@@ -903,11 +931,36 @@ app.get('/api/employees/:id/leave-card/:year', async (req, res) => {
             };
         });
 
+        // --- TIME-TRAVEL PRIVILEGE SUMMARY LOGIC ---
+        // Perfect Sync: Use the snapshot from the last ACTUAL activity entry.
+        // We filter out "Initialization/Rollover" rows because they reset the 
+        // balance snapshots to 5.000, which hides the historical usage.
+        let closingPrivileges = null;
+        
+        const actualActivityRows = ledgerRows.filter(r => 
+            !r.transaction_desc.includes('Yearly Initialization') && 
+            !r.transaction_desc.includes('Yearly Rollover')
+        );
+
+        const lastEntry = actualActivityRows[actualActivityRows.length - 1] || ledgerRows[ledgerRows.length - 1];
+        
+        if (lastEntry) {
+            closingPrivileges = {
+                special_leave: lastEntry.sp_bal,
+                force_leave: lastEntry.fl_bal,
+                wellness_leave: lastEntry.wl_bal,
+                solo_parent_leave: lastEntry.spl_bal,
+                maternity_leave: lastEntry.mat_bal,
+                mourning_leave: lastEntry.mor_bal
+            };
+        }
+
         res.json({
             employee: empRows[0],
             startingBalance,
             rows: [headerRow, ...vlSlRows],
-            privilegeRows: privilegeRows
+            privilegeRows: privilegeRows,
+            closingPrivileges: closingPrivileges // Pass the snapshot
         });
     } catch (error) {
         res.status(500).json({ error: error.message });

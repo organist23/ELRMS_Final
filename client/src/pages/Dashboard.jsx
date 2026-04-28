@@ -92,22 +92,6 @@ const Dashboard = () => {
       {/* System Audit Alerts */}
       {audit && (audit.pendingAccrual || audit.pendingRollover) && (
         <div className="mb-40 flex flex-col gap-16">
-          {audit.pendingAccrual && (
-            <div className="premium-card flex items-center gap-24 p-24" style={{ background: '#fffbeb', border: '1px solid #fde68a', boxShadow: '0 4px 12px rgba(251, 191, 36, 0.1)' }}>
-              <div className="flex items-center gap-20">
-                <div className="bg-amber-100 p-12 rounded-full text-amber-600">
-                  <AlertCircle size={24} />
-                </div>
-                <div>
-                  <h4 className="font-black text-amber-900" style={{ fontSize: '1rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>⚠️ Attention Required</h4>
-                  <p className="font-bold text-amber-700" style={{ opacity: 0.9 }}>
-                    Monthly credits for {new Date(audit.year, audit.month - 1).toLocaleString('default', { month: 'long' })} {audit.year} have not been generated yet.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
           {audit.pendingRollover && (
             <div className="premium-card flex items-center gap-24 p-24" style={{ background: '#fef2f2', border: '1px solid #fecaca', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.1)' }}>
               <div className="flex items-center gap-20">
@@ -118,6 +102,22 @@ const Dashboard = () => {
                   <h4 className="font-black text-red-900" style={{ fontSize: '1rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>🚨 Critical Warning</h4>
                   <p className="font-bold text-red-700" style={{ opacity: 0.9 }}>
                     Yearly Rollover for {audit.prevYear} is still pending. This affects card balances for the current year.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {audit.pendingAccrual && (
+            <div className="premium-card flex items-center gap-24 p-24" style={{ background: '#fffbeb', border: '1px solid #fde68a', boxShadow: '0 4px 12px rgba(251, 191, 36, 0.1)' }}>
+              <div className="flex items-center gap-20">
+                <div className="bg-amber-100 p-12 rounded-full text-amber-600">
+                  <AlertCircle size={24} />
+                </div>
+                <div>
+                  <h4 className="font-black text-amber-900" style={{ fontSize: '1rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>⚠️ Attention Required</h4>
+                  <p className="font-bold text-amber-700" style={{ opacity: 0.9 }}>
+                    Monthly credits for {new Date(audit.year, audit.month - 1).toLocaleString('default', { month: 'long' })} {audit.year} have not been generated yet.
                   </p>
                 </div>
               </div>

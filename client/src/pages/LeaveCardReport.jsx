@@ -205,31 +205,32 @@ const LeaveCardReport = () => {
                 special: employee?.special_leave, 
                 force: employee?.force_leave 
               });
+             const cp = data.closingPrivileges;
              return (
                <>
                  <div className="privilege-summary-box">
                    <span className="label">Special</span>
-                   <span className="value">{clean(employee?.special_leave)} / 3</span>
+                   <span className="value">{clean(cp ? cp.special_leave : employee?.special_leave)} / 3</span>
                  </div>
                  <div className="privilege-summary-box">
                    <span className="label">Force</span>
-                   <span className="value">{clean(employee?.force_leave)} / 5</span>
+                   <span className="value">{clean(cp ? cp.force_leave : employee?.force_leave)} / 5</span>
                  </div>
                  <div className="privilege-summary-box">
                    <span className="label">Wellness</span>
-                   <span className="value">{clean(employee?.wellness_leave)} / 5</span>
+                   <span className="value">{clean(cp ? cp.wellness_leave : employee?.wellness_leave)} / 5</span>
                  </div>
                  <div className="privilege-summary-box">
                    <span className="label">Solo Parent</span>
-                   <span className="value">{clean(employee?.solo_parent_leave)} / 7</span>
+                   <span className="value">{clean(cp ? cp.solo_parent_leave : employee?.solo_parent_leave)} / 7</span>
                  </div>
                  <div className="privilege-summary-box">
                    <span className="label">Maternity</span>
-                   <span className="value">{clean(employee?.maternity_leave)} / 105</span>
+                   <span className="value">{clean(cp ? cp.maternity_leave : employee?.maternity_leave)} / 105</span>
                  </div>
                  <div className="privilege-summary-box">
                    <span className="label">Mourning</span>
-                   <span className="value">{clean(employee?.mourning_leave)} / 3</span>
+                   <span className="value">{clean(cp ? cp.mourning_leave : employee?.mourning_leave)} / 3</span>
                  </div>
                </>
              );

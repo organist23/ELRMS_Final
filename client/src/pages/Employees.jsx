@@ -25,6 +25,16 @@ const Employees = () => {
   // Accrual State
   const [accrualMonth, setAccrualMonth] = useState(new Date().getMonth() + 1);
   const [accrualYear, setAccrualYear] = useState(new Date().getFullYear());
+  const [audit, setAudit] = useState(null);
+
+  const fetchAudit = async () => {
+    try {
+      const { data } = await api.get('/system/audit');
+      setAudit(data);
+    } catch (err) {
+      console.error('Audit failed', err);
+    }
+  };
 
   const handleMonthChange = (e) => {
     const val = parseInt(e.target.value);
@@ -63,6 +73,7 @@ const Employees = () => {
 
   useEffect(() => {
     fetchEmployees();
+    fetchAudit();
   }, []);
 
   useEffect(() => {
@@ -83,6 +94,7 @@ const Employees = () => {
       const { data } = await api.post('/accrual/generate', { month: accrualMonth, year: accrualYear });
       showToast(data.message, 'success');
       fetchEmployees();
+      fetchAudit();
     } catch (err) {
       showToast(err.response?.data?.error || 'Failed to generate credits', 'error');
     } finally {
@@ -183,8 +195,20 @@ const Employees = () => {
             />
           </div>
 
-          <button className="btn-primary" style={{ height: '44px', padding: '0 28px', whiteSpace: 'nowrap', alignSelf: 'flex-end' }} onClick={handleGenerateCredits} disabled={isGenerating}>
-            {isGenerating ? 'Generating...' : 'Confirm Generate'}
+          <button 
+            className="btn-primary" 
+            style={{ 
+              height: '44px', 
+              padding: '0 28px', 
+              whiteSpace: 'nowrap', 
+              alignSelf: 'flex-end',
+              opacity: (isGenerating || audit?.pendingRollover) ? 0.5 : 1,
+              cursor: (isGenerating || audit?.pendingRollover) ? 'not-allowed' : 'pointer'
+            }} 
+            onClick={handleGenerateCredits} 
+            disabled={isGenerating || audit?.pendingRollover}
+          >
+            {audit?.pendingRollover ? 'Rollover Required First' : (isGenerating ? 'Generating...' : 'Confirm Generate')}
           </button>
         </div>
       </div>
@@ -378,7 +402,7 @@ const Employees = () => {
       {isRegModalOpen && <RegisterEmployeeModal onClose={() => setIsRegModalOpen(false)} onSuccess={fetchEmployees} />}
       {isEditModalOpen && selectedEmp && <EditEmployeeModal employee={selectedEmp} onClose={() => setIsEditModalOpen(false)} onSuccess={fetchEmployees} />}
       {isLeaveModalOpen && selectedEmp && <EncodeLeaveModal employee={selectedEmp} onClose={() => setIsLeaveModalOpen(false)} onSuccess={fetchEmployees} />}
-      {isRolloverModalOpen && <RolloverModal onClose={() => setIsRolloverModalOpen(false)} onSuccess={fetchEmployees} />}
+      {isRolloverModalOpen && <RolloverModal onClose={() => setIsRolloverModalOpen(false)} onSuccess={() => { fetchEmployees(); fetchAudit(); }} />}
     </div>
   );
 };
