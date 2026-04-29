@@ -44,7 +44,7 @@ app.put('/api/auth/reset-password', async (req, res) => {
 app.get('/api/employees', async (req, res) => {
     try {
         const [rows] = await db.execute(`
-            SELECT e.*, b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.maternity_leave, b.mourning_leave, b.bbw_vl, b.bbw_sl, b.forwarded_vl, b.forwarded_sl
+            SELECT e.*, b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.maternity_leave, b.bbw_vl, b.bbw_sl, b.forwarded_vl, b.forwarded_sl
             FROM employees e
             JOIN leave_balances b ON e.id = b.employee_id
             WHERE e.is_active = 1
@@ -72,8 +72,8 @@ app.post('/api/employees', async (req, res) => {
         );
 
         await connection.execute(
-            'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, mat_bal, mor_bal, transaction_type, remarks, period_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [id, 'First Registration: Initial Balance Set', initial_vl || 0, initial_sl || 0, 3, 5, 5, 7, 105, 3, 'REGISTRATION', 'Initial Balance', new Date().getFullYear()]
+            'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, mat_bal, transaction_type, remarks, period_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [id, 'First Registration: Initial Balance Set', initial_vl || 0, initial_sl || 0, 3, 5, 5, 7, 105, 'REGISTRATION', 'Initial Balance', new Date().getFullYear()]
         );
 
         await connection.commit();
@@ -122,8 +122,8 @@ app.put('/api/employees/:id', async (req, res) => {
             const leaveTypeLabel = updatedTypes.join('/') || 'ADJUSTMENT';
 
             await connection.execute(
-                'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, mat_bal, mor_bal, transaction_type, leave_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                [req.params.id, desc, b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.maternity_leave, b.mourning_leave, 'MANUAL', leaveTypeLabel]
+                'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, mat_bal, transaction_type, leave_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                [req.params.id, desc, b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.maternity_leave, 'MANUAL', leaveTypeLabel]
             );
         }
 
@@ -150,8 +150,8 @@ app.delete('/api/employees/:id', async (req, res) => {
         const b = b_rows[0];
         
         await connection.execute(
-            'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, mat_bal, mor_bal) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [req.params.id, 'Account Archived: Employee moved to inactive records.', b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.maternity_leave, b.mourning_leave]
+            'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, mat_bal) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [req.params.id, 'Account Archived: Employee moved to inactive records.', b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.maternity_leave]
         );
 
         await connection.commit();
@@ -201,8 +201,7 @@ app.post('/api/leaves/apply', async (req, res) => {
             'Force Leave': 5,
             'Wellness Leave': 5,
             'Solo Parent Leave': 7,
-            'Maternity Leave': 105,
-            'Mourning Leave': 3
+            'Maternity Leave': 105
         };
 
         const field_map = {
@@ -288,8 +287,8 @@ app.post('/api/leaves/approve', async (req, res) => {
         const leave_type_short = app_data.leave_type === 'Vacation Leave' ? 'VL' : (app_data.leave_type === 'Sick Leave' ? 'SL' : app_data.leave_type);
 
         await connection.execute(
-            'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, mat_bal, mor_bal, transaction_type, leave_type, deducted_with_pay, deducted_without_pay, remarks, period_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [app_data.employee_id, desc, b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.maternity_leave, b.mourning_leave, 'LEAVE', leave_type_short, with_pay, without_pay, app_data.reason, app_data.inclusive_dates]
+            'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, mat_bal, transaction_type, leave_type, deducted_with_pay, deducted_without_pay, remarks, period_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [app_data.employee_id, desc, b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.maternity_leave, 'LEAVE', leave_type_short, with_pay, without_pay, app_data.reason, app_data.inclusive_dates]
         );
 
         await connection.commit();
@@ -341,8 +340,8 @@ app.post('/api/leaves/undo', async (req, res) => {
         const restoredDays = parseFloat(app_data.with_pay);
 
         await connection.execute(
-            'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, mat_bal, mor_bal, transaction_type, leave_type, deducted_with_pay, period_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [app_data.employee_id, `UNDO APPROVAL: Restored ${restoredDays} days to ${app_data.leave_type}`, b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.maternity_leave, b.mourning_leave, 'UNDO', leaveTypeCode, restoredDays, app_data.inclusive_dates || null]
+            'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, mat_bal, transaction_type, leave_type, deducted_with_pay, period_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [app_data.employee_id, `UNDO APPROVAL: Restored ${restoredDays} days to ${app_data.leave_type}`, b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.maternity_leave, 'UNDO', leaveTypeCode, restoredDays, app_data.inclusive_dates || null]
         );
 
         await connection.commit();
@@ -388,11 +387,11 @@ app.post('/api/leaves/reject', async (req, res) => {
             // ENTRY A: Updates the VL Card (The "Credit")
             // Routes to VL Card via leave_type='VL'. Shows as "Earned" via balance diff.
             await connection.execute(
-                'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, mat_bal, mor_bal, transaction_type, leave_type, earned, remarks, period_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, mat_bal, transaction_type, leave_type, earned, remarks, period_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                 [
                     app_data.employee_id,
                     'VL Transfer (Force Leave Rejected)',
-                    b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.maternity_leave, b.mourning_leave,
+                    b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.maternity_leave,
                     'TRANSFER',
                     'VL',
                     transferDays,
@@ -404,11 +403,11 @@ app.post('/api/leaves/reject', async (req, res) => {
             // ENTRY B: Updates the Privilege Card (The "Debit")
             // Routes to Privilege Card via leave_type='Force Leave'. Shows as "Absence w/ Pay" via balance diff.
             await connection.execute(
-                'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, mat_bal, mor_bal, transaction_type, leave_type, earned, remarks, period_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, mat_bal, transaction_type, leave_type, earned, remarks, period_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                 [
                     app_data.employee_id,
                     'VL Transfer (Force Leave Rejected)',
-                    b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.maternity_leave, b.mourning_leave,
+                    b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.maternity_leave,
                     'TRANSFER',
                     'Force Leave',
                     0,
@@ -442,14 +441,20 @@ app.post('/api/accrual/generate', async (req, res) => {
         const [logs] = await connection.execute('SELECT * FROM accrual_logs WHERE month = ? AND year = ?', [month, year]);
         if (logs.length > 0) throw new Error('Credits already generated for this month and year');
 
-        // 2. CHECK: Yearly Rollover for previous year must be completed
+        // 2. CHECK: Yearly Rollover for previous year must be completed (If legacy employees exist)
         const prevYear = parseInt(year) - 1;
         const [rolloverCheck] = await connection.execute(
             'SELECT * FROM yearly_action_logs WHERE action_type = "ROLLOVER" AND year = ?',
             [prevYear]
         );
-        if (rolloverCheck.length === 0) {
-            throw new Error(`Cannot generate credits for ${year}. The Yearly Rollover for ${prevYear} is still pending.`);
+        
+        const [legacyCheck] = await connection.execute(
+            'SELECT * FROM employees WHERE YEAR(created_at) < ? AND is_active = 1 LIMIT 1',
+            [year]
+        );
+
+        if (legacyCheck.length > 0 && rolloverCheck.length === 0) {
+            throw new Error(`Cannot generate credits for ${year}. The Yearly Rollover for ${prevYear} is still pending because legacy employees exist.`);
         }
 
         // 2. Add 1.25 to all active employees
@@ -479,12 +484,12 @@ app.post('/api/accrual/generate', async (req, res) => {
             const ledgerRows = balances.map(b => [
                 b.employee_id, 
                 `Monthly Accrual: ${month}/${year} (+1.25 VL/SL)`, 
-                b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.maternity_leave, b.mourning_leave,
+                b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.maternity_leave,
                 'CREDIT', 1.25, 'Monthly Credit', periodText
             ]);
 
             await connection.query(
-                'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, mat_bal, mor_bal, transaction_type, earned, remarks, period_text) VALUES ?',
+                'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, mat_bal, transaction_type, earned, remarks, period_text) VALUES ?',
                 [ledgerRows]
             );
         }
@@ -527,8 +532,7 @@ app.post('/api/accrual/rollover', async (req, res) => {
                 lb.force_leave = 5.000, 
                 lb.wellness_leave = 5.000, 
                 lb.solo_parent_leave = 7.000,
-                lb.maternity_leave = 105.000,
-                lb.mourning_leave = 3.000
+                lb.maternity_leave = 105.000
             WHERE e.is_active = 1
         `);
 
@@ -545,12 +549,12 @@ app.post('/api/accrual/rollover', async (req, res) => {
             const ledgerRows = balances.map(b => [
                 b.employee_id, 
                 `Yearly Initialization (${from_year} -> ${to_year}): Balances Forwarded & Privilege Leaves Reset`, 
-                b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.maternity_leave, b.mourning_leave,
+                b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.maternity_leave,
                 'ROLLOVER', `Yearly Rollover ${from_year} to ${to_year}`, to_year.toString()
             ]);
 
             await connection.query(
-                'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, mat_bal, mor_bal, transaction_type, remarks, period_text) VALUES ?',
+                'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, mat_bal, transaction_type, remarks, period_text) VALUES ?',
                 [ledgerRows]
             );
 
@@ -607,9 +611,18 @@ app.get('/api/system/audit', async (req, res) => {
             [prevYear]
         );
 
+        // 3. SMART CHECK: Only require rollover if there are employees from previous years
+        const [legacyEmployees] = await db.execute(
+            'SELECT * FROM employees WHERE YEAR(created_at) < ? AND is_active = 1 LIMIT 1',
+            [currentYear]
+        );
+        
+        // Rollover is only pending if legacy employees exist AND no rollover log is found
+        const isRolloverPending = legacyEmployees.length > 0 && rolloverLogs.length === 0;
+
         res.json({
             pendingAccrual: accrualLogs.length === 0,
-            pendingRollover: rolloverLogs.length === 0,
+            pendingRollover: isRolloverPending,
             month: currentMonth,
             year: currentYear,
             prevYear: prevYear
@@ -694,7 +707,7 @@ app.get('/api/employees/:id/leave-card/:year', async (req, res) => {
     try {
         // 1. Get Employee Info with live balances
         const [empRows] = await db.execute(`
-            SELECT e.*, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.maternity_leave, b.mourning_leave, b.bbw_vl, b.bbw_sl
+            SELECT e.*, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.maternity_leave, b.bbw_vl, b.bbw_sl
             FROM employees e
             JOIN leave_balances b ON e.id = b.employee_id
             WHERE e.id = ?
@@ -771,8 +784,8 @@ app.get('/api/employees/:id/leave-card/:year', async (req, res) => {
             
             // Check if it's a privilege leave using the reliable leave_type column
             // Fallback to string matching for older records
-            const isPrivilege = ['Special Leave', 'Force Leave', 'Wellness Leave', 'Solo Parent Leave', 'Maternity Leave', 'Mourning Leave'].includes(leaveType) ||
-                                (leaveType === '' && (desc.includes('special leave') || desc.includes('force leave') || desc.includes('wellness') || desc.includes('solo parent') || desc.includes('maternity') || desc.includes('mourning')));
+            const isPrivilege = ['Special Leave', 'Force Leave', 'Wellness Leave', 'Solo Parent Leave', 'Maternity Leave'].includes(leaveType) ||
+                                (leaveType === '' && (desc.includes('special leave') || desc.includes('force leave') || desc.includes('wellness') || desc.includes('solo parent') || desc.includes('maternity')));
 
             return !isSystem && !isPrivilege;
         });
@@ -782,8 +795,8 @@ app.get('/api/employees/:id/leave-card/:year', async (req, res) => {
             const leaveType = entry.leave_type || '';
             const desc = (entry.transaction_desc || '').toLowerCase();
             
-            return ['Special Leave', 'Force Leave', 'Wellness Leave', 'Solo Parent Leave', 'Maternity Leave', 'Mourning Leave'].includes(leaveType) ||
-                   (leaveType === '' && (desc.includes('special leave') || desc.includes('force leave') || desc.includes('wellness') || desc.includes('solo parent') || desc.includes('maternity') || desc.includes('mourning')));
+            return ['Special Leave', 'Force Leave', 'Wellness Leave', 'Solo Parent Leave', 'Maternity Leave'].includes(leaveType) ||
+                   (leaveType === '' && (desc.includes('special leave') || desc.includes('force leave') || desc.includes('wellness') || desc.includes('solo parent') || desc.includes('maternity')));
         });
 
         let runningBalance = { vl: parseFloat(startingBalance.vl), sl: parseFloat(startingBalance.sl) };
@@ -904,14 +917,13 @@ app.get('/api/employees/:id/leave-card/:year', async (req, res) => {
                     { key: 'fl_bal', desc: 'force' },
                     { key: 'wl_bal', desc: 'wellness' },
                     { key: 'spl_bal', desc: 'solo' },
-                    { key: 'mat_bal', desc: 'maternity' },
-                    { key: 'mor_bal', desc: 'mourning' }
+                    { key: 'mat_bal', desc: 'maternity' }
                 ];
                 
                 for (const t of types) {
                     if (entry.transaction_desc.toLowerCase().includes(t.desc)) {
                         // For the first entry, we compare against the default allocation
-                        const defaultCaps = { 'sp_bal': 3, 'fl_bal': 5, 'wl_bal': 5, 'spl_bal': 7, 'mat_bal': 105, 'mor_bal': 3 };
+                        const defaultCaps = { 'sp_bal': 3, 'fl_bal': 5, 'wl_bal': 5, 'spl_bal': 7, 'mat_bal': 105 };
                         const prevBal = idx > 0 ? parseFloat(privilegeEntries[idx - 1][t.key]) : defaultCaps[t.key];
                         const diff = prevBal - parseFloat(entry[t.key]);
                         if (diff !== 0) amount = diff;
@@ -950,8 +962,7 @@ app.get('/api/employees/:id/leave-card/:year', async (req, res) => {
                 force_leave: lastEntry.fl_bal,
                 wellness_leave: lastEntry.wl_bal,
                 solo_parent_leave: lastEntry.spl_bal,
-                maternity_leave: lastEntry.mat_bal,
-                mourning_leave: lastEntry.mor_bal
+                maternity_leave: lastEntry.mat_bal
             };
         }
 

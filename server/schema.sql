@@ -44,7 +44,6 @@ CREATE TABLE leave_balances (
     wellness_leave DECIMAL(10,3) DEFAULT 5.000,
     solo_parent_leave DECIMAL(10,3) DEFAULT 7.000,
     maternity_leave DECIMAL(10,3) DEFAULT 105.000,
-    mourning_leave DECIMAL(10,3) DEFAULT 3.000,
     -- Initial balance fields for newly registered
     bbw_vl DECIMAL(10,3) DEFAULT 0.000, -- Balance Brought Forward VL
     bbw_sl DECIMAL(10,3) DEFAULT 0.000, -- Balance Brought Forward SL
@@ -109,7 +108,6 @@ CREATE TABLE ledger (
     wl_bal DECIMAL(10,3),
     spl_bal DECIMAL(10,3),
     mat_bal DECIMAL(10,3),
-    mor_bal DECIMAL(10,3),
     FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

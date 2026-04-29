@@ -74,33 +74,29 @@ const RegisterEmployeeModal = ({ onClose, onSuccess }) => {
             </div>
             <div className="form-group">
               <label className="label">GSIS Policy No.</label>
-              <input 
-                type="text" 
-                className="input-field" 
-                placeholder="2001556677" 
-                value={formData.gsis_policy} 
-                onChange={e => setFormData({ ...formData, gsis_policy: e.target.value.replace(/[^0-9]/g, '') })} 
+              <input
+                type="text"
+                className="input-field"
+                placeholder="2001556677"
+                value={formData.gsis_policy}
+                onChange={e => setFormData({ ...formData, gsis_policy: e.target.value.replace(/[^0-9]/g, '') })}
               />
             </div>
             <div className="form-group">
               <label className="label">TIN</label>
-              <input 
-                type="text" 
-                className="input-field" 
-                placeholder="123-456-789" 
-                value={formData.tin} 
-                onChange={e => setFormData({ ...formData, tin: e.target.value.replace(/[^0-9-]/g, '') })} 
+              <input
+                type="text"
+                className="input-field"
+                placeholder="123-456-789"
+                value={formData.tin}
+                onChange={e => setFormData({ ...formData, tin: e.target.value.replace(/[^0-9-]/g, '') })}
               />
             </div>
             <div className="form-group">
               <label className="label">Status</label>
               <select className="input-field" value={formData.status} onChange={e => setFormData({ ...formData, status: e.target.value })}>
                 <option value="PERMANENT">PERMANENT</option>
-                <option value="SUBSTITUTE">SUBSTITUTE</option>
                 <option value="ELECTIVE">ELECTIVE</option>
-                <option value="SB">SB</option>
-                <option value="MAYOR">MAYOR</option>
-                <option value="VICE MAYOR">VICE MAYOR</option>
                 <option value="CASUAL">CASUAL</option>
                 <option value="CO TERMINUS">CO TERMINUS</option>
               </select>
