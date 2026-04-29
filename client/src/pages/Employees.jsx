@@ -376,15 +376,13 @@ const Employees = () => {
                     <div style={{ marginTop: '32px' }}>
                        <h4 className="font-bold mb-16" style={{ fontSize: '0.8125rem', color: 'var(--secondary)', display: 'flex', alignItems: 'center', gap: '8px', textTransform: 'uppercase' }}>
                          <RefreshCw size={14} />
-                         Rollover History
+                         Credits Forwarded (Prev. Year)
                        </h4>
-                       <div className="flex flex-col gap-10" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                          {yearlyHistory.map(hist => (
-                            <div key={hist.id} className="flex-between" style={{ padding: '10px 14px', background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: '8px' }}>
-                               <span className="font-bold text-small">{hist.year}</span>
-                               <span className="text-small text-muted font-bold">VL: {parseFloat(hist.vl_forwarded).toFixed(3)} | SL: {parseFloat(hist.sl_forwarded).toFixed(3)}</span>
+                       <div className="flex flex-col gap-10">
+                            <div className="flex-between" style={{ padding: '10px 14px', background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: '8px' }}>
+                               <span className="font-bold text-small">{yearlyHistory[0].year}</span>
+                               <span className="text-small text-muted font-bold">VL: {parseFloat(yearlyHistory[0].vl_forwarded).toFixed(3)} | SL: {parseFloat(yearlyHistory[0].sl_forwarded).toFixed(3)}</span>
                             </div>
-                          ))}
                        </div>
                     </div>
                   )}

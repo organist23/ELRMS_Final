@@ -8,6 +8,15 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
+const LEAVE_TYPES = {
+    SPECIAL: 'Special Leave',
+    FORCE: 'Force Leave',
+    WELLNESS: 'Wellness Leave',
+    SOLO_PARENT: 'Solo Parent Leave',
+    MATERNITY: 'Maternity Leave',
+    SBW: 'Special Benefits for Women'
+};
+
 // --- ROUTES ---
 
 // 1. Authentication
@@ -787,7 +796,7 @@ app.get('/api/employees/:id/leave-card/:year', async (req, res) => {
             // Check if it's a privilege leave using the reliable leave_type column
             // Fallback to string matching for older records
             const isPrivilege = [LEAVE_TYPES.SPECIAL, LEAVE_TYPES.FORCE, LEAVE_TYPES.WELLNESS, LEAVE_TYPES.SOLO_PARENT, LEAVE_TYPES.MATERNITY, LEAVE_TYPES.SBW].includes(leaveType) ||
-                                (leaveType === '' && (desc.includes('special leave') || desc.includes('force leave') || desc.includes('wellness') || desc.includes('solo parent') || desc.includes('maternity') || desc.includes('special benefits for women')));
+                                (leaveType === '' && (desc.includes('special leave') || desc.includes('force leave') || desc.includes('wellness') || desc.includes('solo parent') || desc.includes('maternity') || desc.includes('special benefits for women') || desc.includes('special benefits for woman')));
 
             return !isSystem && !isPrivilege;
         });
@@ -798,7 +807,7 @@ app.get('/api/employees/:id/leave-card/:year', async (req, res) => {
             const desc = (entry.transaction_desc || '').toLowerCase();
             
             return [LEAVE_TYPES.SPECIAL, LEAVE_TYPES.FORCE, LEAVE_TYPES.WELLNESS, LEAVE_TYPES.SOLO_PARENT, LEAVE_TYPES.MATERNITY, LEAVE_TYPES.SBW].includes(leaveType) ||
-                   (leaveType === '' && (desc.includes('special leave') || desc.includes('force leave') || desc.includes('wellness') || desc.includes('solo parent') || desc.includes('maternity') || desc.includes('special benefits for women')));
+                   (leaveType === '' && (desc.includes('special leave') || desc.includes('force leave') || desc.includes('wellness') || desc.includes('solo parent') || desc.includes('maternity') || desc.includes('special benefits for women') || desc.includes('special benefits for woman')));
         });
 
         let runningBalance = { vl: parseFloat(startingBalance.vl), sl: parseFloat(startingBalance.sl) };
