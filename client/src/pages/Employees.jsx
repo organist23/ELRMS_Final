@@ -248,7 +248,7 @@ const Employees = () => {
                     key={emp.id} 
                     onClick={() => setSelectedEmp(emp)}
                     className="clickable-row"
-                    style={{ background: selectedEmp?.id === emp.id ? 'var(--primary-light)' : '' }}
+                    style={{ background: selectedEmp?.id === emp.id ? '#e2e8f0' : '' }}
                   >
                     <td className="font-bold text-small" style={{ color: 'var(--secondary)' }}>{emp.id}</td>
                     <td className="font-bold" style={{ fontSize: '0.9375rem' }}>{emp.full_name}</td>
@@ -284,6 +284,15 @@ const Employees = () => {
               <div className="mb-24">
                 <p className="font-bold" style={{ fontSize: '1.4rem', lineHeight: '1.1', marginBottom: '4px' }}>{selectedEmp.full_name}</p>
                 <p className="text-muted text-small font-bold" style={{ letterSpacing: '0.05em', textTransform: 'uppercase', fontSize: '0.7rem' }}>{selectedEmp.id} • {selectedEmp.position}</p>
+                
+                <button 
+                  className="btn-primary w-full flex items-center justify-center gap-10" 
+                  style={{ marginTop: '20px', padding: '12px' }}
+                  onClick={() => setIsLeaveModalOpen(true)}
+                >
+                  <FilePlus size={18} />
+                  Encode Leave Application
+                </button>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 12px', marginBottom: '32px' }}>
@@ -357,6 +366,10 @@ const Employees = () => {
                        <div className="label mb-4" style={{ fontSize: '0.55rem', opacity: 0.7 }}>MATERNITY</div>
                        <div className="font-bold" style={{ fontSize: '0.9rem' }}>{Number(selectedEmp.maternity_leave || 0)} / 105</div>
                     </div>
+                    <div style={{ padding: '8px 12px', border: '1px solid var(--border)', borderRadius: '8px' }}>
+                       <div className="label mb-4" style={{ fontSize: '0.55rem', opacity: 0.7 }}>SP. BENEFITS (WOMEN)</div>
+                       <div className="font-bold" style={{ fontSize: '0.9rem' }}>{Number(selectedEmp.special_benefits_for_women || 0)} / 30</div>
+                    </div>
                  </div>
 
                  {yearlyHistory.length > 0 && (
@@ -376,15 +389,6 @@ const Employees = () => {
                     </div>
                   )}
               </div>
-
-              <button 
-                className="btn-primary w-full" 
-                style={{ marginTop: '24px' }}
-                onClick={() => setIsLeaveModalOpen(true)}
-              >
-                <FilePlus size={18} />
-                Encode Leave Application
-              </button>
             </div>
           ) : (
             <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>

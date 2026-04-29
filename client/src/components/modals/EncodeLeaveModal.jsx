@@ -16,7 +16,7 @@ const EncodeLeaveModal = ({ employee, onClose, onSuccess }) => {
   });
 
   const earnedLeaves = ['Vacation Leave', 'Sick Leave'];
-  const privilegeLeaves = ['Special Leave', 'Force Leave', 'Wellness Leave', 'Solo Parent Leave', 'Maternity Leave'];
+  const privilegeLeaves = ['Special Leave', 'Force Leave', 'Wellness Leave', 'Solo Parent Leave', 'Maternity Leave', 'Special Benefits for Women'];
 
   // Smart Parser for non-contiguous dates
   const parseInclusiveDates = (str) => {

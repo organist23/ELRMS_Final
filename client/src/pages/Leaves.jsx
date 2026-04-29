@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../utils/api';
-import { CheckCircle, XCircle, Clock, Info, RotateCcw } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Info, RotateCcw, Search } from 'lucide-react';
 import { useNotification } from '../context/NotificationContext';
 
 const Leaves = () => {
@@ -8,6 +8,7 @@ const Leaves = () => {
   const [pendingLeaves, setPendingLeaves] = useState([]);
   const [historyLeaves, setHistoryLeaves] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
 
   const fetchData = async () => {
     try {
@@ -18,7 +19,7 @@ const Leaves = () => {
       setPendingLeaves(pending.data);
       setHistoryLeaves(history.data);
     } catch (err) {
-       console.error('Error fetching data', err);
+      console.error('Error fetching data', err);
     } finally {
       setLoading(false);
     }
@@ -50,21 +51,45 @@ const Leaves = () => {
     }
   };
 
+  const filteredPending = pendingLeaves.filter(l =>
+    (l.full_name || '').toLowerCase().includes(search.toLowerCase()) ||
+    (l.employee_id || '').toLowerCase().includes(search.toLowerCase())
+  );
+
+  const filteredHistory = historyLeaves.filter(l =>
+    (l.full_name || '').toLowerCase().includes(search.toLowerCase()) ||
+    (l.employee_id || '').toLowerCase().includes(search.toLowerCase())
+  );
+
   if (loading) return <div style={{ padding: '48px', textAlign: 'center', color: 'var(--secondary)' }}>Loading Queue...</div>;
 
   return (
     <div className="fade-in">
-      <header className="mb-40">
-        <h1 className="font-bold mb-8" style={{ fontSize: '2.25rem' }}>Approval Queue</h1>
-        <p className="text-muted">Review and process pending leave applications. Logic is applied upon approval.</p>
+      <header className="flex-between mb-40">
+        <div>
+          <h1 className="font-bold mb-8" style={{ fontSize: '2.25rem' }}>Approval Queue</h1>
+          <p className="text-muted">Review and process pending leave applications. Logic is applied upon approval.</p>
+        </div>
+
+        <div style={{ position: 'relative', width: '350px' }}>
+          <Search size={18} className="search-icon" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }} />
+          <input
+            type="text"
+            className="input-field"
+            style={{ paddingLeft: '44px' }}
+            placeholder="Search by Employee or ID..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
       </header>
 
       <div className="premium-card mb-40">
         <h3 className="flex items-center gap-10 mb-24 font-bold" style={{ fontSize: '1.25rem' }}>
-           <Clock size={22} color="var(--accent)" />
-           <span>Pending Requests</span>
+          <Clock size={22} color="var(--accent)" />
+          <span>Pending Requests</span>
         </h3>
-        {pendingLeaves.length > 0 ? (
+        {filteredPending.length > 0 ? (
           <div className="data-table-container">
             <table className="data-table">
               <thead>
@@ -77,7 +102,7 @@ const Leaves = () => {
                 </tr>
               </thead>
               <tbody>
-                {pendingLeaves.map((leave) => (
+                {filteredPending.map((leave) => (
                   <tr key={leave.id}>
                     <td className="text-small" style={{ color: 'var(--secondary)' }}>{new Date(leave.applied_at).toLocaleDateString()}</td>
                     <td className="font-bold" style={{ fontSize: '0.9375rem' }}>{leave.full_name}</td>
@@ -89,7 +114,7 @@ const Leaves = () => {
                     <td>
                       <div style={{ display: 'flex', gap: '8px' }}>
                         <button className="btn-primary" style={{ padding: '8px 16px', background: 'var(--success)', fontSize: '0.8125rem' }} onClick={() => handleAction(leave.id, 'approve', leave)}>Approve</button>
-                        <button className="btn-primary" style={{ padding: '8px 16px', background: 'var(--danger)', fontSize: '0.8125rem' }} onClick={() => handleAction(leave.id, 'reject', leave)}>Reject</button>
+                        <button className="btn-primary" style={{ padding: '8px 16px', background: 'var(--danger)', fontSize: '0.8125rem' }} onClick={() => handleAction(leave.id, 'reject', leave)}>Disapprove</button>
                       </div>
                     </td>
                   </tr>
@@ -106,8 +131,8 @@ const Leaves = () => {
 
       <div className="premium-card mb-40">
         <h3 className="flex items-center gap-10 mb-24 font-bold" style={{ fontSize: '1.25rem' }}>
-           <CheckCircle size={22} color="var(--success)" />
-           <span>Processed Applications</span>
+          <CheckCircle size={22} color="var(--success)" />
+          <span>Processed Applications</span>
         </h3>
         <div className="data-table-container">
           <table className="data-table">
@@ -121,11 +146,11 @@ const Leaves = () => {
               </tr>
             </thead>
             <tbody>
-              {historyLeaves.map(leave => (
+              {filteredHistory.map(leave => (
                 <tr key={leave.id}>
                   <td>
                     <span className={`badge ${leave.status === 'Approved' ? 'badge-approved' : 'badge-rejected'}`}>
-                       {leave.status}
+                      {leave.status}
                     </span>
                   </td>
                   <td className="font-bold">{leave.full_name}</td>
@@ -135,16 +160,16 @@ const Leaves = () => {
                   </td>
                   <td>
                     {leave.status === 'Approved' && (
-                       <div style={{ display: 'flex', gap: '12px' }}>
-                         <span className="font-bold" style={{ color: 'var(--success)', fontSize: '0.75rem' }}>PAID: {Number(leave.with_pay)}</span>
-                         <span className="font-bold" style={{ color: 'var(--danger)', fontSize: '0.75rem' }}>W/O: {Number(leave.without_pay)}</span>
-                       </div>
+                      <div style={{ display: 'flex', gap: '12px' }}>
+                        <span className="font-bold" style={{ color: 'var(--success)', fontSize: '0.75rem' }}>PAID: {Number(leave.with_pay)}</span>
+                        <span className="font-bold" style={{ color: 'var(--danger)', fontSize: '0.75rem' }}>W/O: {Number(leave.without_pay)}</span>
+                      </div>
                     )}
                   </td>
                   <td>
                     {leave.status === 'Approved' && (
-                      <button 
-                        className="btn-undo" 
+                      <button
+                        className="btn-undo"
                         onClick={() => handleAction(leave.id, 'undo')}
                       >
                         <RotateCcw size={14} />
@@ -160,12 +185,12 @@ const Leaves = () => {
       </div>
 
       <div className="premium-card flex items-center gap-16" style={{ background: 'var(--accent-light)', border: '1px solid var(--accent)', opacity: 0.9 }}>
-         <div className="flex items-center justify-center" style={{ flexShrink: 0 }}>
-           <Info size={24} color="var(--accent)" />
-         </div>
-         <p className="text-small font-bold" style={{ color: 'var(--accent)', lineHeight: '1.4' }}>
-           <strong>Note:</strong> Approving an application will automatically deduct the specified days from the employee's current credits and create a permanent ledger record for historical auditing.
-         </p>
+        <div className="flex items-center justify-center" style={{ flexShrink: 0 }}>
+          <Info size={24} color="var(--accent)" />
+        </div>
+        <p className="text-small font-bold" style={{ color: 'var(--accent)', lineHeight: '1.4' }}>
+          <strong>Note:</strong> Approving an application will automatically deduct the specified days from the employee's current credits and create a permanent ledger record for historical auditing.
+        </p>
       </div>
     </div>
   );

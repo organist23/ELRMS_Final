@@ -185,7 +185,7 @@ const LeaveCardReport = () => {
       <div className="leave-card-print-container" style={{ marginTop: '40px', minHeight: 'auto' }}>
         <div className="report-header text-center mb-32">
           <h2 className="font-bold text-primary mb-4" style={{ letterSpacing: '0.05em', textTransform: 'uppercase' }}>Privilege Leave Card</h2>
-          <p className="text-small text-muted font-bold" style={{ textTransform: 'uppercase', letterSpacing: '0.1em' }}>Special • Force • Wellness • Solo Parent • Maternity</p>
+          <p className="text-small text-muted font-bold" style={{ textTransform: 'uppercase', letterSpacing: '0.1em' }}>Special • Force • Wellness • Solo Parent • Maternity • Special Benefits (Women)</p>
         </div>
 
         {/* Privilege Allocations Summary */}
@@ -227,6 +227,10 @@ const LeaveCardReport = () => {
                  <div className="privilege-summary-box">
                    <span className="label">Maternity</span>
                    <span className="value">{clean(cp ? cp.maternity_leave : employee?.maternity_leave)} / 105</span>
+                 </div>
+                 <div className="privilege-summary-box">
+                   <span className="label">Sp. Benefits (Women)</span>
+                   <span className="value">{clean(cp ? cp.special_benefits_for_women : employee?.special_benefits_for_women)} / 30</span>
                  </div>
                </>
              );

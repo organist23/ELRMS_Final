@@ -181,7 +181,12 @@ button {
 }
 
 .data-table tbody tr:hover {
-  background: #fdfdfd;
+  background: #f5f9fc;
+  cursor: pointer;
+}
+
+.clickable-row {
+  cursor: pointer;
 }
 
 .data-table tbody tr:last-child td {
