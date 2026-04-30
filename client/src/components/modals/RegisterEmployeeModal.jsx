@@ -8,6 +8,7 @@ const RegisterEmployeeModal = ({ onClose, onSuccess }) => {
   const initialFormState = {
     id: '',
     full_name: '',
+    sex: 'Male',
     civil_status: 'SINGLE',
     gsis_policy: '',
     position: '',
@@ -50,6 +51,13 @@ const RegisterEmployeeModal = ({ onClose, onSuccess }) => {
             <div className="form-group">
               <label className="label">Full Name</label>
               <input type="text" className="input-field" placeholder="LASTNAME, FIRSTNAME M." required value={formData.full_name} onChange={e => setFormData({ ...formData, full_name: e.target.value })} />
+            </div>
+            <div className="form-group">
+              <label className="label">Sex</label>
+              <select className="input-field" required value={formData.sex} onChange={e => setFormData({ ...formData, sex: e.target.value })}>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+              </select>
             </div>
             <div className="form-group">
               <label className="label">Position</label>

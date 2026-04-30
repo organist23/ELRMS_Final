@@ -7,6 +7,7 @@ const EditEmployeeModal = ({ employee, onClose, onSuccess }) => {
   const { showToast } = useNotification();
   const [formData, setFormData] = useState({
     full_name: employee.full_name,
+    sex: employee.sex || 'Male',
     civil_status: employee.civil_status || 'SINGLE',
     gsis_policy: employee.gsis_policy || '',
     position: employee.position,
@@ -46,6 +47,13 @@ const EditEmployeeModal = ({ employee, onClose, onSuccess }) => {
             <div className="form-group">
               <label className="label">Full Name</label>
               <input type="text" className="input-field" required value={formData.full_name} onChange={e => setFormData({...formData, full_name: e.target.value})} />
+            </div>
+            <div className="form-group">
+              <label className="label">Sex</label>
+              <select className="input-field" required value={formData.sex} onChange={e => setFormData({...formData, sex: e.target.value})}>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+              </select>
             </div>
             <div className="form-group">
               <label className="label">Position</label>
@@ -131,14 +139,18 @@ const EditEmployeeModal = ({ employee, onClose, onSuccess }) => {
                     <div className="label mb-4" style={{ fontSize: '0.6rem' }}>SOLO PARENT</div>
                     <div className="font-bold">{Number(employee.solo_parent_leave)} / 7</div>
                   </div>
-                  <div style={{ background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                    <div className="label mb-4" style={{ fontSize: '0.6rem' }}>MATERNITY</div>
-                    <div className="font-bold">{Number(employee.maternity_leave)} / 105</div>
-                  </div>
-                  <div style={{ background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                    <div className="label mb-4" style={{ fontSize: '0.6rem' }}>SP. BENEFITS (WOMEN)</div>
-                    <div className="font-bold">{Number(employee.special_benefits_for_women || 0)} / 30</div>
-                  </div>
+                  {employee.sex === 'Female' && (
+                    <div style={{ background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                      <div className="label mb-4" style={{ fontSize: '0.6rem' }}>MATERNITY</div>
+                      <div className="font-bold">{Number(employee.maternity_leave)} / 105</div>
+                    </div>
+                  )}
+                  {employee.sex === 'Female' && (
+                    <div style={{ background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                      <div className="label mb-4" style={{ fontSize: '0.6rem' }}>SP. BENEFITS (WOMEN)</div>
+                      <div className="font-bold">{Number(employee.special_benefits_for_women || 0)} / 30</div>
+                    </div>
+                  )}
                </div>
             </div>
           </div>

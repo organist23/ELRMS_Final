@@ -287,11 +287,21 @@ const Employees = () => {
                 
                 <button 
                   className="btn-primary w-full flex items-center justify-center gap-10" 
-                  style={{ marginTop: '20px', padding: '12px' }}
-                  onClick={() => setIsLeaveModalOpen(true)}
+                  style={{ 
+                    marginTop: '20px', 
+                    padding: '12px',
+                    opacity: audit?.pendingRollover ? 0.6 : 1,
+                    cursor: audit?.pendingRollover ? 'not-allowed' : 'pointer'
+                  }}
+                  onClick={() => !audit?.pendingRollover && setIsLeaveModalOpen(true)}
+                  title={audit?.pendingRollover ? "Rollover Required" : "Encode Leave"}
                 >
-                  <FilePlus size={18} />
-                  Encode Leave Application
+                  {audit?.pendingRollover ? "Rollover Required..." : (
+                    <>
+                      <FilePlus size={18} />
+                      Encode Leave Application
+                    </>
+                  )}
                 </button>
               </div>
 
@@ -362,14 +372,18 @@ const Employees = () => {
                        <div className="label mb-4" style={{ fontSize: '0.55rem', opacity: 0.7 }}>SOLO PARENT</div>
                        <div className="font-bold" style={{ fontSize: '0.9rem' }}>{Number(selectedEmp.solo_parent_leave || 0)} / 7</div>
                     </div>
-                    <div style={{ padding: '8px 12px', border: '1px solid var(--border)', borderRadius: '8px' }}>
-                       <div className="label mb-4" style={{ fontSize: '0.55rem', opacity: 0.7 }}>MATERNITY</div>
-                       <div className="font-bold" style={{ fontSize: '0.9rem' }}>{Number(selectedEmp.maternity_leave || 0)} / 105</div>
-                    </div>
-                    <div style={{ padding: '8px 12px', border: '1px solid var(--border)', borderRadius: '8px' }}>
-                       <div className="label mb-4" style={{ fontSize: '0.55rem', opacity: 0.7 }}>SP. BENEFITS (WOMEN)</div>
-                       <div className="font-bold" style={{ fontSize: '0.9rem' }}>{Number(selectedEmp.special_benefits_for_women || 0)} / 30</div>
-                    </div>
+                     {selectedEmp.sex === 'Female' && (
+                        <div style={{ padding: '8px 12px', border: '1px solid var(--border)', borderRadius: '8px' }}>
+                           <div className="label mb-4" style={{ fontSize: '0.55rem', opacity: 0.7 }}>MATERNITY</div>
+                           <div className="font-bold" style={{ fontSize: '0.9rem' }}>{Number(selectedEmp.maternity_leave || 0)} / 105</div>
+                        </div>
+                     )}
+                     {selectedEmp.sex === 'Female' && (
+                        <div style={{ padding: '8px 12px', border: '1px solid var(--border)', borderRadius: '8px' }}>
+                           <div className="label mb-4" style={{ fontSize: '0.55rem', opacity: 0.7 }}>SP. BENEFITS (WOMEN)</div>
+                           <div className="font-bold" style={{ fontSize: '0.9rem' }}>{Number(selectedEmp.special_benefits_for_women || 0)} / 30</div>
+                        </div>
+                     )}
                  </div>
 
                  {yearlyHistory.length > 0 && (

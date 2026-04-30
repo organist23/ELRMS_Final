@@ -17,7 +17,7 @@ const LeaveCardReport = () => {
     try {
       const { data: reportData } = await api.get(`/employees/${id}/leave-card/${year}`);
       setData(reportData);
-      
+
       // Also fetch archive to see available years
       const { data: history } = await api.get(`/employees/${id}/yearly-history`);
       const yearsSet = new Set([new Date().getFullYear()]);
@@ -26,7 +26,7 @@ const LeaveCardReport = () => {
         yearsSet.add(h.year + 1);
       });
       setAvailableYears(Array.from(yearsSet).sort((a, b) => b - a));
-      
+
     } catch (err) {
       console.error('Error fetching leave card', err);
     } finally {
@@ -54,12 +54,13 @@ const LeaveCardReport = () => {
         <button className="btn-secondary flex items-center gap-10" onClick={() => navigate('/employees')}>
           <ChevronLeft size={18} /> Back to Employees
         </button>
-        
+
         <div className="flex items-center gap-16">
-          <div className="flex items-center gap-10 bg-white px-16 py-8 rounded-lg border border-slate-200 shadow-sm">
-            <Calendar size={18} className="text-slate-400" />
-            <select 
+          <div className="flex items-center gap-10 bg-white px-16 py-10 rounded-lg shadow-sm" style={{ border: '1.5px solid var(--border)' }}>
+            <Calendar size={18} style={{ color: 'var(--accent)' }} />
+            <select
               className="font-bold bg-transparent outline-none cursor-pointer"
+              style={{ fontSize: '0.9rem', color: 'var(--primary)', border: 'none' }}
               value={year}
               onChange={(e) => setYear(parseInt(e.target.value))}
             >
@@ -159,7 +160,7 @@ const LeaveCardReport = () => {
                   </tr>
                 );
               })}
-              
+
               {/* Fill remaining space for professional look if printed */}
               {[...Array(Math.max(0, 12 - rows.length))].map((_, i) => (
                 <tr key={`empty-${i}`} className="empty-row">
@@ -185,56 +186,62 @@ const LeaveCardReport = () => {
       <div className="leave-card-print-container" style={{ marginTop: '40px', minHeight: 'auto' }}>
         <div className="report-header text-center mb-32">
           <h2 className="font-bold text-primary mb-4" style={{ letterSpacing: '0.05em', textTransform: 'uppercase' }}>Privilege Leave Card</h2>
-          <p className="text-small text-muted font-bold" style={{ textTransform: 'uppercase', letterSpacing: '0.1em' }}>Special • Force • Wellness • Solo Parent • Maternity • Special Benefits (Women)</p>
+          <p className="text-small text-muted font-bold" style={{ textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+            Special • Force • Wellness • Solo Parent {employee.sex === 'Female' && '• Maternity • Special Benefits (Women)'}
+          </p>
         </div>
 
         {/* Privilege Allocations Summary */}
         <div className="flex gap-16 mb-24">
-            {/* Utility to clean numbers safely */}
-            {(() => {
-              const clean = (val) => {
-                if (val === undefined || val === null) return '0';
-                // Convert string "1.000" to number 1
-                const num = Number(parseFloat(val));
-                if (isNaN(num)) return '0';
-                // Remove trailing zeros
-                return parseFloat(num.toFixed(3)).toString();
-              };
-              // Debug log to catch any schema mismatches
-              console.log('Report Data Check:', { 
-                special: employee?.special_leave, 
-                force: employee?.force_leave 
-              });
-             const cp = data.closingPrivileges;
-             return (
-               <>
-                 <div className="privilege-summary-box">
-                   <span className="label">Special</span>
-                   <span className="value">{clean(cp ? cp.special_leave : employee?.special_leave)} / 3</span>
-                 </div>
-                 <div className="privilege-summary-box">
-                   <span className="label">Force</span>
-                   <span className="value">{clean(cp ? cp.force_leave : employee?.force_leave)} / 5</span>
-                 </div>
-                 <div className="privilege-summary-box">
-                   <span className="label">Wellness</span>
-                   <span className="value">{clean(cp ? cp.wellness_leave : employee?.wellness_leave)} / 5</span>
-                 </div>
-                 <div className="privilege-summary-box">
-                   <span className="label">Solo Parent</span>
-                   <span className="value">{clean(cp ? cp.solo_parent_leave : employee?.solo_parent_leave)} / 7</span>
-                 </div>
-                 <div className="privilege-summary-box">
-                   <span className="label">Maternity</span>
-                   <span className="value">{clean(cp ? cp.maternity_leave : employee?.maternity_leave)} / 105</span>
-                 </div>
-                 <div className="privilege-summary-box">
-                   <span className="label">Sp. Benefits (Women)</span>
-                   <span className="value">{clean(cp ? cp.special_benefits_for_women : employee?.special_benefits_for_women)} / 30</span>
-                 </div>
-               </>
-             );
-           })()}
+          {/* Utility to clean numbers safely */}
+          {(() => {
+            const clean = (val) => {
+              if (val === undefined || val === null) return '0';
+              // Convert string "1.000" to number 1
+              const num = Number(parseFloat(val));
+              if (isNaN(num)) return '0';
+              // Remove trailing zeros
+              return parseFloat(num.toFixed(3)).toString();
+            };
+            // Debug log to catch any schema mismatches
+            console.log('Report Data Check:', {
+              special: employee?.special_leave,
+              force: employee?.force_leave
+            });
+            const cp = data.closingPrivileges;
+            return (
+              <>
+                <div className="privilege-summary-box">
+                  <span className="label">Special</span>
+                  <span className="value">{clean(cp ? cp.special_leave : employee?.special_leave)} / 3</span>
+                </div>
+                <div className="privilege-summary-box">
+                  <span className="label">Force</span>
+                  <span className="value">{clean(cp ? cp.force_leave : employee?.force_leave)} / 5</span>
+                </div>
+                <div className="privilege-summary-box">
+                  <span className="label">Wellness</span>
+                  <span className="value">{clean(cp ? cp.wellness_leave : employee?.wellness_leave)} / 5</span>
+                </div>
+                <div className="privilege-summary-box">
+                  <span className="label">Solo Parent</span>
+                  <span className="value">{clean(cp ? cp.solo_parent_leave : employee?.solo_parent_leave)} / 7</span>
+                </div>
+                {employee.sex === 'Female' && (
+                  <div className="privilege-summary-box">
+                    <span className="label">Maternity</span>
+                    <span className="value">{clean(cp ? cp.maternity_leave : employee?.maternity_leave)} / 105</span>
+                  </div>
+                )}
+                {employee.sex === 'Female' && (
+                  <div className="privilege-summary-box">
+                    <span className="label">Sp. Benefits (Women)</span>
+                    <span className="value">{clean(cp ? cp.special_benefits_for_women : employee?.special_benefits_for_women)} / 30</span>
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
 
         <div className="leave-card-table-wrapper">
@@ -257,10 +264,10 @@ const LeaveCardReport = () => {
                 </tr>
               )) : (
                 <tr className="empty-row">
-                   <td colSpan="4" className="text-center text-muted" style={{ padding: '32px' }}>No privilege leave withdrawals recorded for this year.</td>
+                  <td colSpan="4" className="text-center text-muted" style={{ padding: '32px' }}>No privilege leave withdrawals recorded for this year.</td>
                 </tr>
               )}
-              
+
               {/* Visual fillers */}
               {[...Array(Math.max(0, 5 - (privilegeRows?.length || 0)))].map((_, i) => (
                 <tr key={`empty-p-${i}`} className="empty-row">
@@ -275,7 +282,8 @@ const LeaveCardReport = () => {
         </div>
       </div>
 
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         .leave-card-print-container {
           background: white;
           padding: 60px;

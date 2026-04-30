@@ -16,7 +16,13 @@ const EncodeLeaveModal = ({ employee, onClose, onSuccess }) => {
   });
 
   const earnedLeaves = ['Vacation Leave', 'Sick Leave'];
-  const privilegeLeaves = ['Special Leave', 'Force Leave', 'Wellness Leave', 'Solo Parent Leave', 'Maternity Leave', 'Special Benefits for Women'];
+  const privilegeLeaves = ['Special Leave', 'Force Leave', 'Wellness Leave', 'Solo Parent Leave', 'Maternity Leave', 'Special Benefits for Women']
+    .filter(l => {
+      if (employee.sex === 'Male') {
+        return l !== 'Maternity Leave' && l !== 'Special Benefits for Women';
+      }
+      return true;
+    });
 
   // Smart Parser for non-contiguous dates
   const parseInclusiveDates = (str) => {

@@ -65,14 +65,14 @@ app.get('/api/employees', async (req, res) => {
 });
 
 app.post('/api/employees', async (req, res) => {
-    const { id, full_name, civil_status, gsis_policy, position, entrance_of_duty, tin, status, office, initial_vl, initial_sl } = req.body;
+    const { id, full_name, sex, civil_status, gsis_policy, position, entrance_of_duty, tin, status, office, initial_vl, initial_sl } = req.body;
     const connection = await db.getConnection();
     try {
         await connection.beginTransaction();
         
         await connection.execute(
-            'INSERT INTO employees (id, full_name, civil_status, gsis_policy, position, entrance_of_duty, tin, status, office) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [id, full_name, civil_status, gsis_policy, position, entrance_of_duty, tin, status, office]
+            'INSERT INTO employees (id, full_name, sex, civil_status, gsis_policy, position, entrance_of_duty, tin, status, office) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [id, full_name, sex, civil_status, gsis_policy, position, entrance_of_duty, tin, status, office]
         );
 
         await connection.execute(
@@ -96,7 +96,7 @@ app.post('/api/employees', async (req, res) => {
 });
 
 app.put('/api/employees/:id', async (req, res) => {
-    const { full_name, civil_status, gsis_policy, position, entrance_of_duty, tin, status, office, vacation_leave, sick_leave } = req.body;
+    const { full_name, sex, civil_status, gsis_policy, position, entrance_of_duty, tin, status, office, vacation_leave, sick_leave } = req.body;
     const connection = await db.getConnection();
     try {
         await connection.beginTransaction();
@@ -108,8 +108,8 @@ app.put('/api/employees/:id', async (req, res) => {
 
         // 2. Update credentials
         await connection.execute(
-            'UPDATE employees SET full_name=?, civil_status=?, gsis_policy=?, position=?, entrance_of_duty=?, tin=?, status=?, office=? WHERE id=?',
-            [full_name, civil_status, gsis_policy, position, entrance_of_duty, tin, status, office, req.params.id]
+            'UPDATE employees SET full_name=?, sex=?, civil_status=?, gsis_policy=?, position=?, entrance_of_duty=?, tin=?, status=?, office=? WHERE id=?',
+            [full_name, sex, civil_status, gsis_policy, position, entrance_of_duty, tin, status, office, req.params.id]
         );
 
         // 3. Update balances (VL and SL only)

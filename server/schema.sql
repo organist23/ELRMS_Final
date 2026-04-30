@@ -23,6 +23,7 @@ INSERT INTO admin_users (username, password) VALUES ('admin', 'admin123');
 CREATE TABLE employees (
     id VARCHAR(50) PRIMARY KEY, -- EMP-YYYY-XXX
     full_name VARCHAR(255) NOT NULL,
+    sex VARCHAR(10), -- Male, Female
     civil_status VARCHAR(50),
     gsis_policy VARCHAR(100),
     position VARCHAR(255),
