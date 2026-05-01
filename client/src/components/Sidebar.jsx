@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, Clock, History, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, Clock, History, LogOut, ClipboardList } from 'lucide-react';
 import { useNotification } from '../context/NotificationContext';
 
 const Sidebar = ({ onLogout }) => {
@@ -45,6 +45,12 @@ const Sidebar = ({ onLogout }) => {
             <NavLink to="/history" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
               <History size={20} />
               <span>Ledger History</span>
+            </NavLink>
+          </li>
+          <li>
+            <NavLink to="/ledger-summary" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+              <ClipboardList size={20} />
+              <span>Ledger Summary</span>
             </NavLink>
           </li>
         </ul>

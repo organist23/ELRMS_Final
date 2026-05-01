@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap');
+
 :root {
   /* Core Colors - Professional Navy & Slate Palette */
   --primary: #05184eec;
@@ -41,7 +43,7 @@
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: 'Outfit', sans-serif;
   background-color: var(--bg-main);
   color: var(--text-main);
   line-height: 1.6;
@@ -80,7 +82,7 @@ button {
   position: sticky;
   top: 0;
   height: 100vh;
-  z-index: 50;
+  z-index: 10; /* Lowered so modals can overlap */
 }
 
 .main-content {
@@ -89,6 +91,8 @@ button {
   max-width: 1400px;
   margin: 0 auto;
   width: 100%;
+  position: relative;
+  z-index: 20; /* Higher than sidebar to allow modals to escape */
 }
 
 /* UI Elements */
@@ -362,13 +366,14 @@ button {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(255, 255, 255, 0.6);
+  background: rgba(15, 23, 42, 0.5); /* Slightly darker for better focus */
+  backdrop-filter: blur(4px); /* Premium blur effect */
   display: flex;
   justify-content: center;
-  z-index: 1000;
-  padding: 40px 24px;
+  align-items: center; /* Center vertically on the screen */
+  z-index: 9999; /* Ensure it is above everything */
+  padding: 24px;
   overflow-y: auto;
-  align-items: flex-start;
 }
 
 .modal-content {
@@ -386,12 +391,9 @@ button {
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(10px);
   }
-
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 

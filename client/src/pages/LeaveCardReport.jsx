@@ -42,6 +42,15 @@ const LeaveCardReport = () => {
     window.print();
   };
 
+  const handleExportPDF = () => {
+    if (window.electronAPI && window.electronAPI.exportPDF) {
+      window.electronAPI.exportPDF();
+    } else {
+      // Fallback for standard browser
+      window.print();
+    }
+  };
+
   if (loading) return <div className="loading-state">Loading Leave Card...</div>;
   if (!data) return <div className="error-state">Error loading report data.</div>;
 
@@ -70,6 +79,13 @@ const LeaveCardReport = () => {
 
           <button className="btn-primary flex items-center gap-10" onClick={handlePrint}>
             <Printer size={18} /> Print Report
+          </button>
+
+          <button 
+            className="btn-export" 
+            onClick={handleExportPDF}
+          >
+            <Download size={18} /> Export PDF
           </button>
         </div>
       </div>
@@ -187,7 +203,7 @@ const LeaveCardReport = () => {
         <div className="report-header text-center mb-32">
           <h2 className="font-bold text-primary mb-4" style={{ letterSpacing: '0.05em', textTransform: 'uppercase' }}>Privilege Leave Card</h2>
           <p className="text-small text-muted font-bold" style={{ textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-            Special • Force • Wellness • Solo Parent {employee.sex === 'Female' && '• Maternity • Special Benefits (Women)'}
+            Special • Force • Wellness • Solo Parent {employee.sex === 'Female' ? '• Maternity • Special Benefits (Women)' : '• Paternity'}
           </p>
         </div>
 
@@ -239,6 +255,12 @@ const LeaveCardReport = () => {
                     <span className="value">{clean(cp ? cp.special_benefits_for_women : employee?.special_benefits_for_women)} / 30</span>
                   </div>
                 )}
+                {employee.sex === 'Male' && (
+                  <div className="privilege-summary-box">
+                    <span className="label">Paternity</span>
+                    <span className="value">{clean(cp ? cp.paternity_leave : employee?.paternity_leave)} / 7</span>
+                  </div>
+                )}
               </>
             );
           })()}
@@ -284,6 +306,29 @@ const LeaveCardReport = () => {
 
       <style dangerouslySetInnerHTML={{
         __html: `
+        .btn-export {
+          background-color: #1e293b;
+          color: white;
+          border: 1.5px solid #1e293b;
+          padding: 12px 24px;
+          border-radius: 8px;
+          font-weight: 700;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 10px;
+          font-size: 0.875rem;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-export:hover {
+          background-color: #334155;
+          border-color: #334155;
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
         .leave-card-print-container {
           background: white;
           padding: 60px;

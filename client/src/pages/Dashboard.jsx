@@ -55,7 +55,8 @@ const Dashboard = () => {
           api.get('/ledger/history?limit=10')
         ]);
         setStats(statsRes.data);
-        setRecentLedger(ledgerRes.data);
+        // Correctly handle paginated object response
+        setRecentLedger(ledgerRes.data.data || []);
       } catch (err) {
         console.error('Error fetching dashboard data', err);
       } finally {
@@ -93,15 +94,15 @@ const Dashboard = () => {
       {audit && (audit.pendingAccrual || audit.pendingRollover) && (
         <div className="mb-40 flex flex-col gap-16">
           {audit.pendingRollover && (
-            <div className="premium-card flex items-center gap-24 p-24" style={{ background: '#fef2f2', border: '1px solid #fecaca', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.1)' }}>
+            <div className="premium-card flex items-center gap-24 p-24" style={{ background: 'var(--accent-light)', border: '1.5px solid var(--accent)', boxShadow: 'none' }}>
               <div className="flex items-center gap-20">
-                <div className="bg-red-100 p-12 rounded-full text-red-600">
-                  <AlertCircle size={24} />
+                <div className="icon-box" style={{ background: 'white', color: 'var(--accent)' }}>
+                   <RefreshCw size={24} />
                 </div>
                 <div>
-                  <h4 className="font-black text-red-900" style={{ fontSize: '1rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>🚨 Critical Warning</h4>
-                  <p className="font-bold text-red-700" style={{ opacity: 0.9 }}>
-                    Yearly Rollover for {audit.prevYear} is still pending. This affects card balances for the current year.
+                  <h4 className="font-bold" style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--accent)' }}>Annual System Maintenance</h4>
+                  <p className="font-medium" style={{ color: 'var(--primary)', opacity: 0.8 }}>
+                    The yearly rollover for <strong>{audit.prevYear}</strong> is ready to be processed. This will update the system calendar and forward leave balances.
                   </p>
                 </div>
               </div>
@@ -109,15 +110,15 @@ const Dashboard = () => {
           )}
 
           {audit.pendingAccrual && (
-            <div className="premium-card flex items-center gap-24 p-24" style={{ background: '#fffbeb', border: '1px solid #fde68a', boxShadow: '0 4px 12px rgba(251, 191, 36, 0.1)' }}>
+            <div className="premium-card flex items-center gap-24 p-24" style={{ background: '#f8fafc', border: '1.5px solid #cbd5e1', boxShadow: 'none' }}>
               <div className="flex items-center gap-20">
-                <div className="bg-amber-100 p-12 rounded-full text-amber-600">
-                  <AlertCircle size={24} />
+                <div className="icon-box" style={{ background: 'white', color: '#64748b' }}>
+                   <FileText size={24} />
                 </div>
                 <div>
-                  <h4 className="font-black text-amber-900" style={{ fontSize: '1rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>⚠️ Attention Required</h4>
-                  <p className="font-bold text-amber-700" style={{ opacity: 0.9 }}>
-                    Monthly credits for {new Date(audit.year, audit.month - 1).toLocaleString('default', { month: 'long' })} {audit.year} have not been generated yet.
+                  <h4 className="font-bold" style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#475569' }}>Monthly Credit Update</h4>
+                  <p className="font-medium" style={{ color: '#475569', opacity: 0.8 }}>
+                    Monthly VL/SL credit generation is available for the current period.
                   </p>
                 </div>
               </div>

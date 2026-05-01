@@ -7,6 +7,7 @@ import Leaves from './pages/Leaves';
 import History from './pages/Ledger';
 import Login from './pages/Login';
 import LeaveCardReport from './pages/LeaveCardReport';
+import LedgerSummary from './pages/LedgerSummary';
 
 import { NotificationProvider } from './context/NotificationContext';
 
@@ -34,6 +35,7 @@ const App = () => {
             <Route path="/employees" element={<Employees />} />
             <Route path="/leaves" element={<Leaves />} />
             <Route path="/history" element={<History />} />
+            <Route path="/ledger-summary" element={<LedgerSummary />} />
             <Route path="/employees/:id/leave-card" element={<LeaveCardReport />} />
           </Route>
         </Routes>

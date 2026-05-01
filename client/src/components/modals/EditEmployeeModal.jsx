@@ -112,11 +112,31 @@ const EditEmployeeModal = ({ employee, onClose, onSuccess }) => {
                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '24px' }}>
                   <div className="form-group">
                     <label className="label">Vacation Leave (VL)</label>
-                    <input type="number" step="0.001" className="input-field" value={formData.vacation_leave} onChange={e => setFormData({...formData, vacation_leave: e.target.value})} />
+                    <input 
+                      type="text" 
+                      className="input-field" 
+                      value={formData.vacation_leave} 
+                      onChange={e => {
+                        const val = e.target.value.replace(/[^0-9.]/g, '');
+                        const parts = val.split('.');
+                        const filtered = parts[0] + (parts.length > 1 ? '.' + parts.slice(1).join('') : '');
+                        setFormData({...formData, vacation_leave: filtered});
+                      }} 
+                    />
                   </div>
                   <div className="form-group">
                     <label className="label">Sick Leave (SL)</label>
-                    <input type="number" step="0.001" className="input-field" value={formData.sick_leave} onChange={e => setFormData({...formData, sick_leave: e.target.value})} />
+                    <input 
+                      type="text" 
+                      className="input-field" 
+                      value={formData.sick_leave} 
+                      onChange={e => {
+                        const val = e.target.value.replace(/[^0-9.]/g, '');
+                        const parts = val.split('.');
+                        const filtered = parts[0] + (parts.length > 1 ? '.' + parts.slice(1).join('') : '');
+                        setFormData({...formData, sick_leave: filtered});
+                      }} 
+                    />
                   </div>
                </div>
                
@@ -143,6 +163,12 @@ const EditEmployeeModal = ({ employee, onClose, onSuccess }) => {
                     <div style={{ background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
                       <div className="label mb-4" style={{ fontSize: '0.6rem' }}>MATERNITY</div>
                       <div className="font-bold">{Number(employee.maternity_leave)} / 105</div>
+                    </div>
+                  )}
+                  {employee.sex === 'Male' && (
+                    <div style={{ background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                      <div className="label mb-4" style={{ fontSize: '0.6rem' }}>PATERNITY</div>
+                      <div className="font-bold">{Number(employee.paternity_leave || 0)} / 7</div>
                     </div>
                   )}
                   {employee.sex === 'Female' && (

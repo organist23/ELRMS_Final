@@ -115,11 +115,34 @@ const RegisterEmployeeModal = ({ onClose, onSuccess }) => {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                 <div className="form-group">
                   <label className="label">Initial Vacation Leave (VL) <span style={{ color: 'var(--accent)' }}>*</span></label>
-                  <input type="number" step="0.001" className="input-field" required value={formData.initial_vl} onChange={e => setFormData({ ...formData, initial_vl: e.target.value })} />
+                  <input 
+                    type="text" 
+                    className="input-field" 
+                    required 
+                    value={formData.initial_vl} 
+                    onChange={e => {
+                      const val = e.target.value.replace(/[^0-9.]/g, '');
+                      // Allow only one dot
+                      const parts = val.split('.');
+                      const filtered = parts[0] + (parts.length > 1 ? '.' + parts.slice(1).join('') : '');
+                      setFormData({ ...formData, initial_vl: filtered });
+                    }} 
+                  />
                 </div>
                 <div className="form-group">
                   <label className="label">Initial Sick Leave (SL) <span style={{ color: 'var(--accent)' }}>*</span></label>
-                  <input type="number" step="0.001" className="input-field" required value={formData.initial_sl} onChange={e => setFormData({ ...formData, initial_sl: e.target.value })} />
+                  <input 
+                    type="text" 
+                    className="input-field" 
+                    required 
+                    value={formData.initial_sl} 
+                    onChange={e => {
+                      const val = e.target.value.replace(/[^0-9.]/g, '');
+                      const parts = val.split('.');
+                      const filtered = parts[0] + (parts.length > 1 ? '.' + parts.slice(1).join('') : '');
+                      setFormData({ ...formData, initial_sl: filtered });
+                    }} 
+                  />
                 </div>
               </div>
             </div>

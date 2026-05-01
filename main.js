@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -55,5 +55,36 @@ app.on('window-all-closed', () => {
 app.on('activate', () => {
     if (mainWindow === null) {
         createWindow();
+    }
+});
+
+ipcMain.on('export-pdf', async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    const pdfPath = await dialog.showSaveDialog(win, {
+        title: 'Save Leave Card as PDF',
+        defaultPath: 'Leave_Card_Report.pdf',
+        filters: [{ name: 'PDF Files', extensions: ['pdf'] }]
+    });
+
+    if (!pdfPath.canceled && pdfPath.filePath) {
+        const options = {
+            margins: {
+                top: 0,
+                bottom: 0,
+                left: 0,
+                right: 0
+            },
+            pageSize: 'A4',
+            printBackground: true,
+            landscape: true,
+            preferCSSPageSize: true
+        };
+
+        try {
+            const data = await win.webContents.printToPDF(options);
+            fs.writeFileSync(pdfPath.filePath, data);
+        } catch (error) {
+            console.error('Failed to generate PDF:', error);
+        }
     }
 });

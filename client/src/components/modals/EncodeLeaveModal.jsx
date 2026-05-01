@@ -16,10 +16,13 @@ const EncodeLeaveModal = ({ employee, onClose, onSuccess }) => {
   });
 
   const earnedLeaves = ['Vacation Leave', 'Sick Leave'];
-  const privilegeLeaves = ['Special Leave', 'Force Leave', 'Wellness Leave', 'Solo Parent Leave', 'Maternity Leave', 'Special Benefits for Women']
+  const privilegeLeaves = ['Special Leave', 'Force Leave', 'Wellness Leave', 'Solo Parent Leave', 'Maternity Leave', 'Paternity Leave', 'Special Benefits for Women']
     .filter(l => {
       if (employee.sex === 'Male') {
         return l !== 'Maternity Leave' && l !== 'Special Benefits for Women';
+      }
+      if (employee.sex === 'Female') {
+        return l !== 'Paternity Leave';
       }
       return true;
     });
@@ -172,13 +175,17 @@ const EncodeLeaveModal = ({ employee, onClose, onSuccess }) => {
           <div className="form-group">
             <label className="label">Number of Days</label>
             <input 
-              type="number" 
-              step="0.5" 
+              type="text" 
               className="input-field" 
-              required 
+              readOnly
               value={leaveData.num_days} 
-              style={{ borderColor: wellnessWarning ? '#dc2626' : '' }}
-              onChange={e => setLeaveData({...leaveData, num_days: parseFloat(e.target.value)})} 
+              style={{ 
+                borderColor: wellnessWarning ? '#dc2626' : '',
+                backgroundColor: '#f8fafc',
+                cursor: 'not-allowed',
+                fontWeight: 'bold',
+                color: 'var(--primary)'
+              }}
             />
             {wellnessWarning && (
               <p style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '6px', fontWeight: 600, lineHeight: 1.4 }}>

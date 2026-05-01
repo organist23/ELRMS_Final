@@ -10,19 +10,38 @@ const Ledger = () => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
-  const fetchHistory = async () => {
+  const fetchHistory = async (isLoadMore = false) => {
     try {
-      const [{ data: historyData }, { data: employeesData }] = await Promise.all([
-        api.get('/ledger/history'),
-        api.get('/employees')
+      if (isLoadMore) setLoadingMore(true);
+      else setLoading(true);
+
+      // We fetch all active employees once for the filter dropdown
+      // For 1000+ employees, we might want a searchable select later, 
+      // but for now we'll just handle the new object format.
+      const [{ data: historyRes }, { data: employeesRes }] = await Promise.all([
+        api.get(`/ledger/history?page=${isLoadMore ? page + 1 : 1}&limit=50`),
+        api.get('/employees?limit=1000') // Fetch more for the filter dropdown
       ]);
-      setHistory(historyData);
-      setEmployees(employeesData);
+
+      if (isLoadMore) {
+        setHistory(prev => [...prev, ...historyRes.data]);
+        setPage(prev => prev + 1);
+      } else {
+        setHistory(historyRes.data);
+        setPage(1);
+      }
+      
+      setTotalPages(historyRes.totalPages);
+      setEmployees(employeesRes.data || []);
     } catch (err) {
       console.error('Error fetching ledger history', err);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
@@ -165,6 +184,20 @@ const Ledger = () => {
             </tbody>
           </table>
         </div>
+
+        {/* Load More Button */}
+        {page < totalPages && (
+          <div className="flex justify-center mt-32">
+            <button 
+              className="btn-primary" 
+              style={{ padding: '12px 40px', minWidth: '200px' }}
+              onClick={() => fetchHistory(true)}
+              disabled={loadingMore}
+            >
+              {loadingMore ? 'Loading More...' : 'Load More History'}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

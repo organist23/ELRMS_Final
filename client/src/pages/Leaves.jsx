@@ -9,15 +9,23 @@ const Leaves = () => {
   const [historyLeaves, setHistoryLeaves] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [processing, setProcessing] = useState(false);
+  
+  // History Pagination
+  const [historyPage, setHistoryPage] = useState(1);
+  const [totalHistoryPages, setTotalHistoryPages] = useState(1);
+  const [totalHistoryRecords, setTotalHistoryRecords] = useState(0);
 
   const fetchData = async () => {
     try {
-      const [pending, history] = await Promise.all([
+      const [pending, historyRes] = await Promise.all([
         api.get('/leaves/pending'),
-        api.get('/leaves/history')
+        api.get(`/leaves/history?page=${historyPage}`)
       ]);
       setPendingLeaves(pending.data);
-      setHistoryLeaves(history.data);
+      setHistoryLeaves(historyRes.data.data);
+      setTotalHistoryPages(historyRes.data.totalPages);
+      setTotalHistoryRecords(historyRes.data.total);
     } catch (err) {
       console.error('Error fetching data', err);
     } finally {
@@ -27,9 +35,11 @@ const Leaves = () => {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [historyPage]);
 
   const handleAction = async (id, action, leave = null) => {
+    if (processing) return; // Prevent overlapping actions
+
     let confirmTitle = 'Confirm Action';
     let confirmMsg = `Are you sure you want to ${action} this leave application? This will update employee balances and creates a ledger record.`;
 
@@ -43,11 +53,14 @@ const Leaves = () => {
     if (!isConfirmed) return;
 
     try {
+      setProcessing(true);
       await api.post(`/leaves/${action}`, { application_id: id });
       showToast(`${action.charAt(0).toUpperCase() + action.slice(1)} completed successfully.`, 'success');
       fetchData();
     } catch (err) {
       showToast(err.response?.data?.error || `Failed to ${action}`, 'error');
+    } finally {
+      setProcessing(false);
     }
   };
 
@@ -113,8 +126,22 @@ const Leaves = () => {
                     </td>
                     <td>
                       <div style={{ display: 'flex', gap: '8px' }}>
-                        <button className="btn-primary" style={{ padding: '8px 16px', background: 'var(--success)', fontSize: '0.8125rem' }} onClick={() => handleAction(leave.id, 'approve', leave)}>Approve</button>
-                        <button className="btn-primary" style={{ padding: '8px 16px', background: 'var(--danger)', fontSize: '0.8125rem' }} onClick={() => handleAction(leave.id, 'reject', leave)}>Disapprove</button>
+                        <button 
+                          className="btn-primary" 
+                          style={{ padding: '8px 16px', background: 'var(--success)', fontSize: '0.8125rem', opacity: processing ? 0.5 : 1, cursor: processing ? 'not-allowed' : 'pointer' }} 
+                          onClick={() => handleAction(leave.id, 'approve', leave)}
+                          disabled={processing}
+                        >
+                          {processing ? '...' : 'Approve'}
+                        </button>
+                        <button 
+                          className="btn-primary" 
+                          style={{ padding: '8px 16px', background: 'var(--danger)', fontSize: '0.8125rem', opacity: processing ? 0.5 : 1, cursor: processing ? 'not-allowed' : 'pointer' }} 
+                          onClick={() => handleAction(leave.id, 'reject', leave)}
+                          disabled={processing}
+                        >
+                          {processing ? '...' : 'Disapprove'}
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -171,9 +198,11 @@ const Leaves = () => {
                       <button
                         className="btn-undo"
                         onClick={() => handleAction(leave.id, 'undo')}
+                        disabled={processing}
+                        style={{ opacity: processing ? 0.5 : 1, cursor: processing ? 'not-allowed' : 'pointer' }}
                       >
                         <RotateCcw size={14} />
-                        Undo Approval
+                        {processing ? '...' : 'Undo Approval'}
                       </button>
                     )}
                   </td>
@@ -182,6 +211,34 @@ const Leaves = () => {
             </tbody>
           </table>
         </div>
+
+        {/* History Pagination Controls */}
+        {totalHistoryPages > 1 && (
+          <div className="flex-between mt-24" style={{ padding: '0 8px' }}>
+            <span className="text-small text-muted font-bold">
+              Showing {historyLeaves.length} of {totalHistoryRecords} records
+            </span>
+            <div className="flex items-center gap-12">
+              <button 
+                className="btn-secondary" 
+                style={{ padding: '6px 16px', fontSize: '0.8rem' }}
+                disabled={historyPage === 1 || loading}
+                onClick={() => setHistoryPage(prev => prev - 1)}
+              >
+                Previous
+              </button>
+              <span className="font-bold text-small" style={{ color: 'var(--accent)' }}>Page {historyPage} of {totalHistoryPages}</span>
+              <button 
+                className="btn-secondary" 
+                style={{ padding: '6px 16px', fontSize: '0.8rem' }}
+                disabled={historyPage === totalHistoryPages || loading}
+                onClick={() => setHistoryPage(prev => prev + 1)}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="premium-card flex items-center gap-16" style={{ background: 'var(--accent-light)', border: '1px solid var(--accent)', opacity: 0.9 }}>
