@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import api from '../utils/api';
-import { Eye, EyeOff, KeyRound, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, KeyRound, ArrowLeft, Wifi, WifiOff, Loader } from 'lucide-react';
 
 const Login = ({ onLogin }) => {
   // --- Login State ---
@@ -9,6 +9,10 @@ const Login = ({ onLogin }) => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  // --- Connection Test State ---
+  const [pingStatus, setPingStatus] = useState(null); // null | 'testing' | 'success' | 'error'
+  const [pingMessage, setPingMessage] = useState('');
 
   // --- Forgot Password State ---
   const [showForgot, setShowForgot] = useState(false);
@@ -33,6 +37,19 @@ const Login = ({ onLogin }) => {
       setError(err.response?.data?.message || 'Login failed. Please check credentials.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePing = async () => {
+    setPingStatus('testing');
+    setPingMessage('');
+    try {
+      const { data } = await api.get('/ping');
+      setPingStatus('success');
+      setPingMessage(data.message);
+    } catch (err) {
+      setPingStatus('error');
+      setPingMessage(err.response?.data?.message || 'Cannot reach the server. Make sure the app backend is running.');
     }
   };
 
@@ -90,7 +107,7 @@ const Login = ({ onLogin }) => {
     <div className="login-screen">
       <div className="login-card">
         <div className="login-brand-side">
-          <img src="/logo.jpg" alt="ELRMS Logo" className="login-logo-image" />
+          <img src="./logo.jpg" alt="ELRMS Logo" className="login-logo-image" />
         </div>
 
         <div className="login-form-side">
@@ -170,6 +187,56 @@ const Login = ({ onLogin }) => {
                 >
                   {loading ? 'Authenticating...' : 'Sign In'}
                 </button>
+
+                {/* Test Connection Button */}
+                <button
+                  type="button"
+                  onClick={handlePing}
+                  disabled={pingStatus === 'testing'}
+                  style={{
+                    width: '100%',
+                    marginTop: '12px',
+                    padding: '10px',
+                    background: 'none',
+                    border: '1px solid var(--border)',
+                    borderRadius: '10px',
+                    fontSize: '0.8125rem',
+                    fontWeight: 600,
+                    color: 'var(--text-muted)',
+                    cursor: pingStatus === 'testing' ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  {pingStatus === 'testing' ? (
+                    <><Loader size={15} style={{ animation: 'spin 1s linear infinite' }} /> Testing Connection...</>
+                  ) : (
+                    <><Wifi size={15} /> Test Database Connection</>
+                  )}
+                </button>
+
+                {/* Connection Test Result */}
+                {pingStatus && pingStatus !== 'testing' && (
+                  <div style={{
+                    marginTop: '10px',
+                    padding: '10px 14px',
+                    borderRadius: '8px',
+                    fontSize: '0.78rem',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    background: pingStatus === 'success' ? '#f0fdf4' : '#fef2f2',
+                    border: `1px solid ${pingStatus === 'success' ? '#86efac' : '#fca5a5'}`,
+                    color: pingStatus === 'success' ? '#16a34a' : '#dc2626',
+                  }}>
+                    {pingStatus === 'success' ? <Wifi size={14} /> : <WifiOff size={14} />}
+                    {pingMessage}
+                  </div>
+                )}
               </form>
             </>
           ) : (

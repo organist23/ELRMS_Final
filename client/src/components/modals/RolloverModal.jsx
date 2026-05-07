@@ -40,21 +40,18 @@ const RolloverModal = ({ onClose, onSuccess }) => {
       <div className="modal-content fade-in" style={{ maxWidth: '480px' }}>
         <div className="flex-between mb-32">
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <div className="icon-box icon-blue">
-              <Calendar size={24} />
-            </div>
             <h2 className="font-bold" style={{ fontSize: '1.5rem' }}>Yearly Rollover</h2>
           </div>
           <button onClick={onClose} className="icon-btn"><X size={24} /></button>
         </div>
 
-        <div className="mb-32" style={{ borderLeft: '4px solid var(--warning)', background: 'var(--warning-light)', padding: '16px 20px', borderRadius: '4px' }}>
+        <div className="mb-32" style={{ borderLeft: '4px solid var(--accent)', background: 'var(--accent-light)', padding: '16px 20px', borderRadius: '4px' }}>
           <div className="flex items-center gap-12 mb-8">
-            <AlertTriangle size={18} color="var(--warning)" />
-            <span className="font-bold text-small" style={{ color: 'var(--warning)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Administrative Warning</span>
+            <Calendar size={18} color="var(--accent)" />
+            <span className="font-bold text-small" style={{ color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Process Information</span>
           </div>
-          <p className="text-small" style={{ color: '#92400e', fontWeight: '500', lineHeight: '1.5' }}>
-            This process forwards balances from the source year and resets all privilege leaves to their full annual limits. This action is **permanent**.
+          <p className="text-small" style={{ color: 'var(--primary)', fontWeight: '500', lineHeight: '1.5' }}>
+            This process forwards balances from the source year and resets all privilege leaves to their full annual limits.
           </p>
         </div>
 

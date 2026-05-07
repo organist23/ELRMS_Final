@@ -23,6 +23,7 @@ INSERT INTO admin_users (username, password) VALUES ('admin', 'admin123');
 CREATE TABLE employees (
     id VARCHAR(50) PRIMARY KEY, -- EMP-YYYY-XXX
     full_name VARCHAR(255) NOT NULL,
+    sex VARCHAR(10), -- Male, Female
     civil_status VARCHAR(50),
     gsis_policy VARCHAR(100),
     position VARCHAR(255),
@@ -43,6 +44,9 @@ CREATE TABLE leave_balances (
     force_leave DECIMAL(10,3) DEFAULT 5.000,
     wellness_leave DECIMAL(10,3) DEFAULT 5.000,
     solo_parent_leave DECIMAL(10,3) DEFAULT 7.000,
+    maternity_leave DECIMAL(10,3) DEFAULT 105.000,
+    paternity_leave DECIMAL(10,3) DEFAULT 7.000,
+    special_benefits_for_women DECIMAL(10,3) DEFAULT 30.000,
     -- Initial balance fields for newly registered
     bbw_vl DECIMAL(10,3) DEFAULT 0.000, -- Balance Brought Forward VL
     bbw_sl DECIMAL(10,3) DEFAULT 0.000, -- Balance Brought Forward SL
@@ -106,6 +110,9 @@ CREATE TABLE ledger (
     fl_bal DECIMAL(10,3),
     wl_bal DECIMAL(10,3),
     spl_bal DECIMAL(10,3),
+    mat_bal DECIMAL(10,3),
+    pat_bal DECIMAL(10,3) DEFAULT 7.000,
+    sbw_bal DECIMAL(10,3) DEFAULT 30.000,
     FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

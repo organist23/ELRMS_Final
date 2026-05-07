@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Employees from './pages/Employees';
@@ -7,6 +7,7 @@ import Leaves from './pages/Leaves';
 import History from './pages/Ledger';
 import Login from './pages/Login';
 import LeaveCardReport from './pages/LeaveCardReport';
+import LedgerSummary from './pages/LedgerSummary';
 
 import { NotificationProvider } from './context/NotificationContext';
 
@@ -34,6 +35,7 @@ const App = () => {
             <Route path="/employees" element={<Employees />} />
             <Route path="/leaves" element={<Leaves />} />
             <Route path="/history" element={<History />} />
+            <Route path="/ledger-summary" element={<LedgerSummary />} />
             <Route path="/employees/:id/leave-card" element={<LeaveCardReport />} />
           </Route>
         </Routes>

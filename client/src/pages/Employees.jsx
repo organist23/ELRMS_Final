@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../utils/api';
-import { Search, UserPlus, FilePlus, RefreshCw, Send, Trash2, Edit, Users, FileText, RefreshCw as RefreshIcon } from 'lucide-react';
+import { Search, UserPlus, FilePlus, RefreshCw, Send, Trash2, Edit, Users, FileText, RefreshCw as RefreshIcon, Clock } from 'lucide-react';
 import RegisterEmployeeModal from '../components/modals/RegisterEmployeeModal';
 import EditEmployeeModal from '../components/modals/EditEmployeeModal';
 import EncodeLeaveModal from '../components/modals/EncodeLeaveModal';
 import RolloverModal from '../components/modals/RolloverModal';
+import EquivalentDayModal from '../components/modals/EquivalentDayModal';
 import { useNotification } from '../context/NotificationContext';
 
 const Employees = () => {
@@ -13,18 +14,44 @@ const Employees = () => {
   const { showToast, confirm } = useNotification();
   const [employees, setEmployees] = useState([]);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedEmp, setSelectedEmp] = useState(null);
   const [isRegModalOpen, setIsRegModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
+  const [isTardyModalOpen, setIsTardyModalOpen] = useState(false);
   const [isRolloverModalOpen, setIsRolloverModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [yearlyHistory, setYearlyHistory] = useState([]);
 
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalEmployees, setTotalEmployees] = useState(0);
+
+  // Debounce Search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setCurrentPage(1); // Reset to page 1 on new search
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
   // Accrual State
   const [accrualMonth, setAccrualMonth] = useState(new Date().getMonth() + 1);
   const [accrualYear, setAccrualYear] = useState(new Date().getFullYear());
+  const [audit, setAudit] = useState(null);
+
+  const fetchAudit = async () => {
+    try {
+      const { data } = await api.get('/system/audit');
+      setAudit(data);
+    } catch (err) {
+      console.error('Audit failed', err);
+    }
+  };
 
   const handleMonthChange = (e) => {
     const val = parseInt(e.target.value);
@@ -39,10 +66,14 @@ const Employees = () => {
 
   const fetchEmployees = async () => {
     try {
-      const { data } = await api.get('/employees');
-      setEmployees(data);
+      setLoading(true);
+      const { data: res } = await api.get(`/employees?page=${currentPage}&search=${debouncedSearch}`);
+      setEmployees(res.data);
+      setTotalPages(res.totalPages);
+      setTotalEmployees(res.total);
+
       if (selectedEmp) {
-        const updated = data.find(e => e.id === selectedEmp.id);
+        const updated = res.data.find(e => e.id === selectedEmp.id);
         if (updated) setSelectedEmp(updated);
       }
     } catch (err) {
@@ -63,7 +94,8 @@ const Employees = () => {
 
   useEffect(() => {
     fetchEmployees();
-  }, []);
+    fetchAudit();
+  }, [currentPage, debouncedSearch]);
 
   useEffect(() => {
     if (selectedEmp) {
@@ -77,12 +109,13 @@ const Employees = () => {
       `Are you sure you want to generate 1.25 VL/SL credits for all employees for ${accrualMonth}/${accrualYear}?`
     );
     if (!isConfirmed) return;
-    
+
     setIsGenerating(true);
     try {
       const { data } = await api.post('/accrual/generate', { month: accrualMonth, year: accrualYear });
       showToast(data.message, 'success');
       fetchEmployees();
+      fetchAudit();
     } catch (err) {
       showToast(err.response?.data?.error || 'Failed to generate credits', 'error');
     } finally {
@@ -95,12 +128,12 @@ const Employees = () => {
 
   const handleDeleteEmployee = async () => {
     if (!selectedEmp) return;
-    
+
     const isConfirmed = await confirm(
       'Archive Employee',
       `Are you sure you want to delete ${selectedEmp.full_name}? Their records will be moved to the inactive archive for audit history.`
     );
-    
+
     if (!isConfirmed) return;
 
     try {
@@ -113,10 +146,9 @@ const Employees = () => {
     }
   };
 
-  const filtered = employees.filter(e => 
-    e.full_name.toLowerCase().includes(search.toLowerCase()) || 
-    e.id.toLowerCase().includes(search.toLowerCase())
-  );
+  // Client-side filter is removed in favor of server-side search
+  // but we keep the variable name 'filtered' to avoid changing too much JSX
+  const filtered = employees;
 
   return (
     <div className="fade-in">
@@ -183,24 +215,36 @@ const Employees = () => {
             />
           </div>
 
-          <button className="btn-primary" style={{ height: '44px', padding: '0 28px', whiteSpace: 'nowrap', alignSelf: 'flex-end' }} onClick={handleGenerateCredits} disabled={isGenerating}>
-            {isGenerating ? 'Generating...' : 'Confirm Generate'}
+          <button
+            className="btn-primary"
+            style={{
+              height: '44px',
+              padding: '0 28px',
+              whiteSpace: 'nowrap',
+              alignSelf: 'flex-end',
+              opacity: (isGenerating || audit?.pendingRollover) ? 0.5 : 1,
+              cursor: (isGenerating || audit?.pendingRollover) ? 'not-allowed' : 'pointer'
+            }}
+            onClick={handleGenerateCredits}
+            disabled={isGenerating || audit?.pendingRollover}
+          >
+            {audit?.pendingRollover ? 'Rollover Required First' : (isGenerating ? 'Generating...' : 'Confirm Generate')}
           </button>
         </div>
       </div>
 
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '32px' }}>
+      <div className="employee-layout-grid">
         {/* Left Side: List */}
         <div className="premium-card">
           <div className="form-group mb-24">
             <div style={{ position: 'relative' }}>
               <Search size={18} className="search-icon" />
-              <input 
-                type="text" 
-                className="input-field" 
-                style={{ paddingLeft: '44px' }} 
-                placeholder="Search by ID or Name..." 
+              <input
+                type="text"
+                className="input-field"
+                style={{ paddingLeft: '44px' }}
+                placeholder="Search by ID or Name..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
               />
@@ -219,22 +263,59 @@ const Employees = () => {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map(emp => (
-                  <tr 
-                    key={emp.id} 
-                    onClick={() => setSelectedEmp(emp)}
-                    className="clickable-row"
-                    style={{ background: selectedEmp?.id === emp.id ? 'var(--primary-light)' : '' }}
-                  >
-                    <td className="font-bold text-small" style={{ color: 'var(--secondary)' }}>{emp.id}</td>
-                    <td className="font-bold" style={{ fontSize: '0.9375rem' }}>{emp.full_name}</td>
-                    <td className="text-small">{emp.position}</td>
-                    <td className="text-small">{emp.office}</td>
-                    <td><span className="badge badge-approved">{emp.status}</span></td>
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" style={{ textAlign: 'center', padding: '48px', color: 'var(--text-light)' }}>
+                      <div className="flex flex-col items-center gap-12">
+                        <Users size={32} style={{ opacity: 0.2 }} />
+                        <span>No employees found {debouncedSearch ? `matching "${debouncedSearch}"` : ''}</span>
+                      </div>
+                    </td>
                   </tr>
-                ))}
+                ) : (
+                  filtered.map(emp => (
+                    <tr
+                      key={emp.id}
+                      onClick={() => setSelectedEmp(emp)}
+                      className="clickable-row"
+                      style={{ background: selectedEmp?.id === emp.id ? '#e2e8f0' : '' }}
+                    >
+                      <td className="font-bold text-small" style={{ color: 'var(--secondary)' }}>{emp.id}</td>
+                      <td className="font-bold" style={{ fontSize: '0.9375rem' }}>{emp.full_name}</td>
+                      <td className="text-small">{emp.position}</td>
+                      <td className="text-small">{emp.office}</td>
+                      <td><span className="badge badge-approved">{emp.status}</span></td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
+          </div>
+
+          {/* Pagination Controls */}
+          <div className="flex-between mt-24" style={{ padding: '0 8px' }}>
+            <span className="text-small text-muted font-bold">
+              Showing {employees.length} of {totalEmployees} employees
+            </span>
+            <div className="flex items-center gap-12">
+              <button
+                className="btn-secondary"
+                style={{ padding: '6px 16px', fontSize: '0.8rem' }}
+                disabled={currentPage === 1 || loading}
+                onClick={() => setCurrentPage(prev => prev - 1)}
+              >
+                Previous
+              </button>
+              <span className="font-bold text-small" style={{ color: 'var(--accent)' }}>Page {currentPage} of {totalPages}</span>
+              <button
+                className="btn-secondary"
+                style={{ padding: '6px 16px', fontSize: '0.8rem' }}
+                disabled={currentPage === totalPages || loading}
+                onClick={() => setCurrentPage(prev => prev + 1)}
+              >
+                Next
+              </button>
+            </div>
           </div>
         </div>
 
@@ -245,118 +326,155 @@ const Employees = () => {
               <div className="flex-between mb-24">
                 <h3 className="font-bold" style={{ fontSize: '1.25rem' }}>Employee Details</h3>
                 <div style={{ display: 'flex', gap: '8px' }}>
-                   <button className="icon-btn" onClick={() => navigate(`/employees/${selectedEmp.id}/leave-card`)} title="View Leave Card Report" style={{ color: 'var(--accent)' }}>
-                     <FileText size={18} />
-                   </button>
-                   <button className="icon-btn" onClick={() => setIsEditModalOpen(true)} title="Edit Profile">
-                     <Edit size={18} />
-                   </button>
-                   <button className="icon-btn" style={{ color: '#ef4444' }} onClick={handleDeleteEmployee} title="Archive Employee">
-                     <Trash2 size={18} />
-                   </button>
+                  <button className="icon-btn" onClick={() => navigate(`/employees/${selectedEmp.id}/leave-card`)} title="View Leave Card Report" style={{ color: 'var(--accent)', padding: '6px' }}>
+                    <FileText size={26} />
+                  </button>
+                  <button className="icon-btn" onClick={() => setIsEditModalOpen(true)} title="Edit Profile">
+                    <Edit size={14} />
+                  </button>
+                  <button className="icon-btn" style={{ color: '#ef4444' }} onClick={handleDeleteEmployee} title="Archive Employee">
+                    <Trash2 size={14} />
+                  </button>
                 </div>
               </div>
 
               <div className="mb-24">
                 <p className="font-bold" style={{ fontSize: '1.4rem', lineHeight: '1.1', marginBottom: '4px' }}>{selectedEmp.full_name}</p>
                 <p className="text-muted text-small font-bold" style={{ letterSpacing: '0.05em', textTransform: 'uppercase', fontSize: '0.7rem' }}>{selectedEmp.id} • {selectedEmp.position}</p>
+
+                <button
+                  className="btn-primary w-full flex items-center justify-center gap-10"
+                  style={{
+                    marginTop: '20px',
+                    padding: '12px',
+                    opacity: audit?.pendingRollover ? 0.6 : 1,
+                    cursor: audit?.pendingRollover ? 'not-allowed' : 'pointer'
+                  }}
+                  onClick={() => !audit?.pendingRollover && setIsLeaveModalOpen(true)}
+                  title={audit?.pendingRollover ? "Rollover Required" : "Encode Leave"}
+                >
+                  {audit?.pendingRollover ? "Rollover Required..." : (
+                    <>
+                      <FilePlus size={18} />
+                      Encode Leave Application
+                    </>
+                  )}
+                </button>
+
+                {/* NEW: Deduct Equivalent Day Button */}
+                <button
+                  className="btn-secondary w-full flex items-center justify-center gap-10"
+                  style={{ marginTop: '10px', padding: '10px' }}
+                  onClick={() => setIsTardyModalOpen(true)}
+                  title="Deduct Equivalent Day from VL"
+                >
+                  <Clock size={16} />
+                  Deduct Equivalent Day
+                </button>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 12px', marginBottom: '32px' }}>
-                 <div className="info-item">
-                    <label className="label" style={{ fontSize: '0.6rem', opacity: 0.7 }}>Civil Status</label>
-                    <span className="font-bold" style={{ fontSize: '0.85rem' }}>{selectedEmp.civil_status || 'N/A'}</span>
-                 </div>
-                 <div className="info-item">
-                    <label className="label" style={{ fontSize: '0.6rem', opacity: 0.7 }}>TIN</label>
-                    <span className="font-bold" style={{ fontSize: '0.85rem' }}>{selectedEmp.tin || 'N/A'}</span>
-                 </div>
-                 <div className="info-item">
-                    <label className="label" style={{ fontSize: '0.6rem', opacity: 0.7 }}>GSIS Policy</label>
-                    <span className="font-bold" style={{ fontSize: '0.85rem' }}>{selectedEmp.gsis_policy || 'N/A'}</span>
-                 </div>
-                 <div className="info-item">
-                    <label className="label" style={{ fontSize: '0.6rem', opacity: 0.7 }}>Status</label>
-                    <span className="badge badge-approved" style={{ fontSize: '0.65rem', padding: '2px 8px' }}>{selectedEmp.status}</span>
-                 </div>
-                 <div className="info-item">
-                    <label className="label" style={{ fontSize: '0.6rem', opacity: 0.7 }}>Entrance of Duty</label>
-                    <span className="font-bold" style={{ fontSize: '0.85rem' }}>{new Date(selectedEmp.entrance_of_duty).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                 </div>
-                 <div className="info-item">
-                    <label className="label" style={{ fontSize: '0.6rem', opacity: 0.7 }}>Office</label>
-                    <span className="font-bold" style={{ fontSize: '0.85rem' }}>{selectedEmp.office}</span>
-                 </div>
+                <div className="info-item">
+                  <label className="label" style={{ fontSize: '0.6rem', opacity: 0.7 }}>Civil Status</label>
+                  <span className="font-bold" style={{ fontSize: '0.85rem' }}>{selectedEmp.civil_status || 'N/A'}</span>
+                </div>
+                <div className="info-item">
+                  <label className="label" style={{ fontSize: '0.6rem', opacity: 0.7 }}>TIN</label>
+                  <span className="font-bold" style={{ fontSize: '0.85rem' }}>{selectedEmp.tin || 'N/A'}</span>
+                </div>
+                <div className="info-item">
+                  <label className="label" style={{ fontSize: '0.6rem', opacity: 0.7 }}>GSIS Policy</label>
+                  <span className="font-bold" style={{ fontSize: '0.85rem' }}>{selectedEmp.gsis_policy || 'N/A'}</span>
+                </div>
+                <div className="info-item">
+                  <label className="label" style={{ fontSize: '0.6rem', opacity: 0.7 }}>Status</label>
+                  <span className="badge badge-approved" style={{ fontSize: '0.65rem', padding: '2px 8px' }}>{selectedEmp.status}</span>
+                </div>
+                <div className="info-item">
+                  <label className="label" style={{ fontSize: '0.6rem', opacity: 0.7 }}>Entrance of Duty</label>
+                  <span className="font-bold" style={{ fontSize: '0.85rem' }}>{new Date(selectedEmp.entrance_of_duty).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                </div>
+                <div className="info-item">
+                  <label className="label" style={{ fontSize: '0.6rem', opacity: 0.7 }}>Office</label>
+                  <span className="font-bold" style={{ fontSize: '0.85rem' }}>{selectedEmp.office}</span>
+                </div>
               </div>
 
               <h4 className="font-bold mb-12" style={{ fontSize: '0.75rem', color: 'var(--secondary)', borderBottom: '1px solid var(--border)', paddingBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.8 }}>Leave Credits</h4>
-              
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                 <div style={{ background: 'var(--primary-light)', padding: '12px 16px', borderRadius: '10px', border: '1px solid var(--border)' }}>
-                    <div className="flex-between mb-4">
-                       <span className="font-bold" style={{ fontSize: '0.75rem', color: 'var(--secondary)' }}>Vacation Leave (VL)</span>
-                       <span className="font-bold" style={{ fontSize: '1.15rem', color: 'var(--primary)' }}>{parseFloat(selectedEmp.vacation_leave || 0).toFixed(3)}</span>
-                    </div>
-                    <div className="flex-between text-small text-muted font-bold" style={{ fontSize: '0.7rem' }}>
-                       <span style={{ opacity: 0.7 }}>Forwarded: {parseFloat(selectedEmp.forwarded_vl || 0).toFixed(3)}</span>
-                    </div>
-                 </div>
+                <div style={{ background: 'var(--primary-light)', padding: '12px 16px', borderRadius: '10px', border: '1px solid var(--border)' }}>
+                  <div className="flex-between mb-4">
+                    <span className="font-bold" style={{ fontSize: '0.75rem', color: 'var(--secondary)' }}>Vacation Leave (VL)</span>
+                    <span className="font-bold" style={{ fontSize: '1.15rem', color: 'var(--primary)' }}>{parseFloat(selectedEmp.vacation_leave || 0).toFixed(3)}</span>
+                  </div>
+                  <div className="flex-between text-small text-muted font-bold" style={{ fontSize: '0.7rem' }}>
+                    <span style={{ opacity: 0.7 }}>Forwarded: {parseFloat(selectedEmp.forwarded_vl || 0).toFixed(3)}</span>
+                  </div>
+                </div>
 
-                 <div style={{ background: 'var(--primary-light)', padding: '12px 16px', borderRadius: '10px', border: '1px solid var(--border)' }}>
-                    <div className="flex-between mb-4">
-                       <span className="font-bold" style={{ fontSize: '0.75rem', color: 'var(--secondary)' }}>Sick Leave (SL)</span>
-                       <span className="font-bold" style={{ fontSize: '1.15rem', color: 'var(--primary)' }}>{parseFloat(selectedEmp.sick_leave || 0).toFixed(3)}</span>
-                    </div>
-                    <div className="flex-between text-small text-muted font-bold" style={{ fontSize: '0.7rem' }}>
-                       <span style={{ opacity: 0.7 }}>Forwarded: {parseFloat(selectedEmp.forwarded_sl || 0).toFixed(3)}</span>
-                    </div>
-                 </div>
+                <div style={{ background: 'var(--primary-light)', padding: '12px 16px', borderRadius: '10px', border: '1px solid var(--border)' }}>
+                  <div className="flex-between mb-4">
+                    <span className="font-bold" style={{ fontSize: '0.75rem', color: 'var(--secondary)' }}>Sick Leave (SL)</span>
+                    <span className="font-bold" style={{ fontSize: '1.15rem', color: 'var(--primary)' }}>{parseFloat(selectedEmp.sick_leave || 0).toFixed(3)}</span>
+                  </div>
+                  <div className="flex-between text-small text-muted font-bold" style={{ fontSize: '0.7rem' }}>
+                    <span style={{ opacity: 0.7 }}>Forwarded: {parseFloat(selectedEmp.forwarded_sl || 0).toFixed(3)}</span>
+                  </div>
+                </div>
 
-                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                  <div style={{ padding: '8px 12px', border: '1px solid var(--border)', borderRadius: '8px' }}>
+                    <div className="label mb-4" style={{ fontSize: '0.55rem', opacity: 0.7 }}>SPECIAL</div>
+                    <div className="font-bold" style={{ fontSize: '0.9rem' }}>{Number(selectedEmp.special_leave || 0)} / 3</div>
+                  </div>
+                  <div style={{ padding: '8px 12px', border: '1px solid var(--border)', borderRadius: '8px' }}>
+                    <div className="label mb-4" style={{ fontSize: '0.55rem', opacity: 0.7 }}>FORCE</div>
+                    <div className="font-bold" style={{ fontSize: '0.9rem' }}>{Number(selectedEmp.force_leave || 0)} / 5</div>
+                  </div>
+                  <div style={{ padding: '8px 12px', border: '1px solid var(--border)', borderRadius: '8px' }}>
+                    <div className="label mb-4" style={{ fontSize: '0.55rem', opacity: 0.7 }}>WELLNESS</div>
+                    <div className="font-bold" style={{ fontSize: '0.9rem' }}>{Number(selectedEmp.wellness_leave || 0)} / 5</div>
+                  </div>
+                  <div style={{ padding: '8px 12px', border: '1px solid var(--border)', borderRadius: '8px' }}>
+                    <div className="label mb-4" style={{ fontSize: '0.55rem', opacity: 0.7 }}>SOLO PARENT</div>
+                    <div className="font-bold" style={{ fontSize: '0.9rem' }}>{Number(selectedEmp.solo_parent_leave || 0)} / 7</div>
+                  </div>
+                  {selectedEmp.sex === 'Female' && (
                     <div style={{ padding: '8px 12px', border: '1px solid var(--border)', borderRadius: '8px' }}>
-                       <div className="label mb-4" style={{ fontSize: '0.55rem', opacity: 0.7 }}>SPECIAL</div>
-                       <div className="font-bold" style={{ fontSize: '0.9rem' }}>{Number(selectedEmp.special_leave || 0)} / 3</div>
-                    </div>
-                    <div style={{ padding: '8px 12px', border: '1px solid var(--border)', borderRadius: '8px' }}>
-                       <div className="label mb-4" style={{ fontSize: '0.55rem', opacity: 0.7 }}>FORCE</div>
-                       <div className="font-bold" style={{ fontSize: '0.9rem' }}>{Number(selectedEmp.force_leave || 0)} / 5</div>
-                    </div>
-                    <div style={{ padding: '8px 12px', border: '1px solid var(--border)', borderRadius: '8px' }}>
-                       <div className="label mb-4" style={{ fontSize: '0.55rem', opacity: 0.7 }}>WELLNESS</div>
-                       <div className="font-bold" style={{ fontSize: '0.9rem' }}>{Number(selectedEmp.wellness_leave || 0)} / 5</div>
-                    </div>
-                    <div style={{ padding: '8px 12px', border: '1px solid var(--border)', borderRadius: '8px' }}>
-                       <div className="label mb-4" style={{ fontSize: '0.55rem', opacity: 0.7 }}>SOLO PARENT</div>
-                       <div className="font-bold" style={{ fontSize: '0.9rem' }}>{Number(selectedEmp.solo_parent_leave || 0)} / 7</div>
-                    </div>
-                 </div>
-
-                 {yearlyHistory.length > 0 && (
-                    <div style={{ marginTop: '32px' }}>
-                       <h4 className="font-bold mb-16" style={{ fontSize: '0.8125rem', color: 'var(--secondary)', display: 'flex', alignItems: 'center', gap: '8px', textTransform: 'uppercase' }}>
-                         <RefreshCw size={14} />
-                         Rollover History
-                       </h4>
-                       <div className="flex flex-col gap-10" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                          {yearlyHistory.map(hist => (
-                            <div key={hist.id} className="flex-between" style={{ padding: '10px 14px', background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: '8px' }}>
-                               <span className="font-bold text-small">{hist.year}</span>
-                               <span className="text-small text-muted font-bold">VL: {parseFloat(hist.vl_forwarded).toFixed(3)} | SL: {parseFloat(hist.sl_forwarded).toFixed(3)}</span>
-                            </div>
-                          ))}
-                       </div>
+                      <div className="label mb-4" style={{ fontSize: '0.55rem', opacity: 0.7 }}>MATERNITY</div>
+                      <div className="font-bold" style={{ fontSize: '0.9rem' }}>{Number(selectedEmp.maternity_leave || 0)} / 105</div>
                     </div>
                   )}
-              </div>
+                  {selectedEmp.sex === 'Male' && (
+                    <div style={{ padding: '8px 12px', border: '1px solid var(--border)', borderRadius: '8px' }}>
+                      <div className="label mb-4" style={{ fontSize: '0.55rem', opacity: 0.7 }}>PATERNITY</div>
+                      <div className="font-bold" style={{ fontSize: '0.9rem' }}>{Number(selectedEmp.paternity_leave || 0)} / 7</div>
+                    </div>
+                  )}
+                  {selectedEmp.sex === 'Female' && (
+                    <div style={{ padding: '8px 12px', border: '1px solid var(--border)', borderRadius: '8px' }}>
+                      <div className="label mb-4" style={{ fontSize: '0.55rem', opacity: 0.7 }}>SP. BENEFITS (WOMEN)</div>
+                      <div className="font-bold" style={{ fontSize: '0.9rem' }}>{Number(selectedEmp.special_benefits_for_women || 0)} / 30</div>
+                    </div>
+                  )}
+                </div>
 
-              <button 
-                className="btn-primary w-full" 
-                style={{ marginTop: '24px' }}
-                onClick={() => setIsLeaveModalOpen(true)}
-              >
-                <FilePlus size={18} />
-                Encode Leave Application
-              </button>
+                {yearlyHistory.length > 0 && (
+                  <div style={{ marginTop: '32px' }}>
+                    <h4 className="font-bold mb-16" style={{ fontSize: '0.8125rem', color: 'var(--secondary)', display: 'flex', alignItems: 'center', gap: '8px', textTransform: 'uppercase' }}>
+                      <RefreshCw size={14} />
+                      Credits Forwarded (Prev. Year)
+                    </h4>
+                    <div className="flex flex-col gap-10">
+                      <div className="flex-between" style={{ padding: '10px 14px', background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: '8px' }}>
+                        <span className="font-bold text-small">{yearlyHistory[0].year}</span>
+                        <span className="text-small text-muted font-bold">VL: {parseFloat(yearlyHistory[0].vl_forwarded).toFixed(3)} | SL: {parseFloat(yearlyHistory[0].sl_forwarded).toFixed(3)}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           ) : (
             <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
@@ -370,7 +488,8 @@ const Employees = () => {
       {isRegModalOpen && <RegisterEmployeeModal onClose={() => setIsRegModalOpen(false)} onSuccess={fetchEmployees} />}
       {isEditModalOpen && selectedEmp && <EditEmployeeModal employee={selectedEmp} onClose={() => setIsEditModalOpen(false)} onSuccess={fetchEmployees} />}
       {isLeaveModalOpen && selectedEmp && <EncodeLeaveModal employee={selectedEmp} onClose={() => setIsLeaveModalOpen(false)} onSuccess={fetchEmployees} />}
-      {isRolloverModalOpen && <RolloverModal onClose={() => setIsRolloverModalOpen(false)} onSuccess={fetchEmployees} />}
+      {isTardyModalOpen && selectedEmp && <EquivalentDayModal employee={selectedEmp} onClose={() => setIsTardyModalOpen(false)} onSuccess={fetchEmployees} />}
+      {isRolloverModalOpen && <RolloverModal onClose={() => setIsRolloverModalOpen(false)} onSuccess={() => { fetchEmployees(); fetchAudit(); }} />}
     </div>
   );
 };

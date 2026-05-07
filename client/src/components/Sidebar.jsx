@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, Clock, History, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, Clock, History, LogOut, ClipboardList } from 'lucide-react';
 import { useNotification } from '../context/NotificationContext';
 
 const Sidebar = ({ onLogout }) => {
@@ -47,6 +47,12 @@ const Sidebar = ({ onLogout }) => {
               <span>Ledger History</span>
             </NavLink>
           </li>
+          <li>
+            <NavLink to="/ledger-summary" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+              <ClipboardList size={20} />
+              <span>Ledger Summary</span>
+            </NavLink>
+          </li>
         </ul>
       </nav>
 
@@ -68,6 +74,8 @@ const Sidebar = ({ onLogout }) => {
           margin-bottom: 4px;
           transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
           font-size: 0.9375rem;
+          white-space: nowrap;
+          flex-shrink: 0;
         }
         .nav-link:hover {
           background: var(--primary-light);
@@ -101,6 +109,10 @@ const Sidebar = ({ onLogout }) => {
         .logout-btn:hover {
           background: #fee2e2;
           transform: translateY(-1px);
+        }
+        .logout-btn {
+          white-space: nowrap;
+          flex-shrink: 0;
         }
       `}</style>
     </aside>
