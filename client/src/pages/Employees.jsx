@@ -48,6 +48,9 @@ const Employees = () => {
     try {
       const { data } = await api.get('/system/audit');
       setAudit(data);
+      // Auto-sync the display values with server-side time
+      if (data.month) setAccrualMonth(data.month);
+      if (data.year) setAccrualYear(data.year);
     } catch (err) {
       console.error('Audit failed', err);
     }
@@ -185,14 +188,9 @@ const Employees = () => {
             <input
               type="number"
               className="input-field"
-              style={{ width: '72px', fontWeight: 700, textAlign: 'center', border: '1.5px solid var(--accent)', color: 'var(--accent)' }}
+              style={{ width: '72px', fontWeight: 700, textAlign: 'center', border: '1.5px solid var(--accent)', color: 'var(--accent)', cursor: 'default', background: 'white' }}
               value={accrualMonth}
-              min={1}
-              max={12}
-              step={1}
-              onChange={handleMonthChange}
-              onBlur={handleMonthChange}
-              disabled={isGenerating}
+              readOnly
             />
           </div>
 
@@ -204,14 +202,9 @@ const Employees = () => {
             <input
               type="number"
               className="input-field"
-              style={{ width: '96px', fontWeight: 700, textAlign: 'center', border: '1.5px solid var(--accent)', color: 'var(--accent)' }}
+              style={{ width: '96px', fontWeight: 700, textAlign: 'center', border: '1.5px solid var(--accent)', color: 'var(--accent)', cursor: 'default', background: 'white' }}
               value={accrualYear}
-              min={2000}
-              max={new Date().getFullYear() + 5}
-              step={1}
-              onChange={handleYearChange}
-              onBlur={handleYearChange}
-              disabled={isGenerating}
+              readOnly
             />
           </div>
 
