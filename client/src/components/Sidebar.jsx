@@ -88,6 +88,7 @@ const Sidebar = ({ onLogout }) => {
         }
         .nav-link svg {
           opacity: 0.7;
+          flex-shrink: 0; /* Prevent icons from shrinking */
         }
         .nav-link.active svg {
           opacity: 1;
@@ -105,14 +106,15 @@ const Sidebar = ({ onLogout }) => {
           font-weight: 600;
           font-size: 0.9375rem;
           transition: all 0.2s;
+          white-space: nowrap;
+          flex-shrink: 0;
+        }
+        .logout-btn svg {
+          flex-shrink: 0; /* Prevent logout icon from shrinking */
         }
         .logout-btn:hover {
           background: #fee2e2;
           transform: translateY(-1px);
-        }
-        .logout-btn {
-          white-space: nowrap;
-          flex-shrink: 0;
         }
       `}</style>
     </aside>
