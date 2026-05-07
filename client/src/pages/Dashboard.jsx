@@ -7,8 +7,6 @@ const Dashboard = () => {
   const [stats, setStats] = useState({ totalEmployees: 0, pendingApproval: 0 });
   const [audit, setAudit] = useState(null);
   const [recentLedger, setRecentLedger] = useState([]);
-  const [filteredLedger, setFilteredLedger] = useState([]);
-  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -29,15 +27,7 @@ const Dashboard = () => {
     fetchAudit();
   }, []);
 
-  useEffect(() => {
-    const filtered = recentLedger.filter(item => {
-      const name = item.full_name || '';
-      const desc = item.transaction_desc || '';
-      return name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-             desc.toLowerCase().includes(searchQuery.toLowerCase());
-    });
-    setFilteredLedger(filtered);
-  }, [searchQuery, recentLedger]);
+
 
   const formatDate = (date) => {
     return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
@@ -147,23 +137,6 @@ const Dashboard = () => {
       <div className="premium-card">
         <div className="flex-between mb-24 gap-20">
           <h3 className="font-bold" style={{ fontSize: '1.25rem' }}>Recent Ledger Activity</h3>
-          
-          <div className="flex items-center gap-12 justify-end" style={{ flex: 1 }}>
-            <div style={{ position: 'relative', width: '320px' }}>
-              <Search size={18} className="search-icon" />
-              <input 
-                type="text" 
-                className="input-field" 
-                placeholder="Search activity..." 
-                style={{ paddingLeft: '44px' }} 
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-              />
-            </div>
-            <button className="btn-secondary" style={{ padding: '10px 20px' }} onClick={() => setSearchQuery('')}>
-              Clear
-            </button>
-          </div>
         </div>
 
         <div className="data-table-container">
@@ -177,7 +150,7 @@ const Dashboard = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredLedger.length > 0 ? filteredLedger.map((item) => (
+              {recentLedger.length > 0 ? recentLedger.map((item) => (
                 <tr key={item.id}>
                   <td className="text-small" style={{ whiteSpace: 'nowrap', color: 'var(--secondary)' }}>
                     {new Date(item.action_date).toLocaleDateString()}

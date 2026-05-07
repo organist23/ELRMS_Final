@@ -362,7 +362,7 @@ const Employees = () => {
                   title="Deduct Equivalent Day from VL"
                 >
                   <Clock size={16} />
-                  Deduct Equivalent Day
+                  Deduct For Tardy
                 </button>
               </div>
 
