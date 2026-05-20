@@ -43,7 +43,7 @@ const RegisterEmployeeModal = ({ onClose, onSuccess }) => {
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
+          <div className="modal-form-grid">
             <div className="form-group">
               <label>Employee ID (EID)</label>
               <input type="text" className="input-field" placeholder="EMP-2026-001" required value={formData.id} onChange={e => setFormData({ ...formData, id: e.target.value })} />
@@ -110,9 +110,9 @@ const RegisterEmployeeModal = ({ onClose, onSuccess }) => {
               </select>
             </div>
 
-            <div style={{ gridColumn: 'span 3', background: 'var(--accent-light)', padding: '24px', borderRadius: 'var(--radius)', marginTop: '8px', border: '1px solid var(--accent)' }}>
+            <div className="form-accrual-section">
               <h4 className="font-bold mb-16" style={{ color: 'var(--accent)', textTransform: 'uppercase', fontSize: '0.8rem', letterSpacing: '0.05em' }}>Initial Balances (Brought Forward)</h4>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+              <div className="modal-form-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
                 <div className="form-group">
                   <label className="label">Initial Vacation Leave (VL) <span style={{ color: 'var(--accent)' }}>*</span></label>
                   <input 

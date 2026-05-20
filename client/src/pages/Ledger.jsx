@@ -1,69 +1,70 @@
 import React, { useState, useEffect } from 'react';
 import api from '../utils/api';
-import { History as HistoryIcon, Search, Clock } from 'lucide-react';
+import { History as HistoryIcon, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const Ledger = () => {
   const [history, setHistory] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [selectedEmpId, setSelectedEmpId] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
+  
+  // Improved Pagination State
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
 
-  const fetchHistory = async (isLoadMore = false) => {
+  // Fetch all active employees ONCE for the filter dropdown
+  const fetchEmployees = async () => {
     try {
-      if (isLoadMore) setLoadingMore(true);
-      else setLoading(true);
-
-      // We fetch all active employees once for the filter dropdown
-      // For 1000+ employees, we might want a searchable select later, 
-      // but for now we'll just handle the new object format.
-      const [{ data: historyRes }, { data: employeesRes }] = await Promise.all([
-        api.get(`/ledger/history?page=${isLoadMore ? page + 1 : 1}&limit=50`),
-        api.get('/employees?limit=1000') // Fetch more for the filter dropdown
-      ]);
-
-      if (isLoadMore) {
-        setHistory(prev => [...prev, ...historyRes.data]);
-        setPage(prev => prev + 1);
-      } else {
-        setHistory(historyRes.data);
-        setPage(1);
-      }
-      
-      setTotalPages(historyRes.totalPages);
+      const { data: employeesRes } = await api.get('/employees?limit=1000');
       setEmployees(employeesRes.data || []);
     } catch (err) {
-      console.error('Error fetching ledger history', err);
-    } finally {
-      setLoading(false);
-      setLoadingMore(false);
+      console.error('Error fetching employees list', err);
     }
   };
 
   useEffect(() => {
-    fetchHistory();
+    fetchEmployees();
   }, []);
 
-  const filteredHistory = history.filter(item => {
-    const matchesEmp = selectedEmpId ? item.employee_id === selectedEmpId : true;
-    const matchesSearch =
-      (item.full_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (item.employee_id || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (item.transaction_desc || '').toLowerCase().includes(searchQuery.toLowerCase());
+  // Reset page to 1 whenever dropdown filters or date ranges change
+  useEffect(() => {
+    setPage(1);
+  }, [selectedEmpId, startDate, endDate]);
 
-    const actionDate = new Date(item.action_date);
-    const matchesStart = startDate ? actionDate >= new Date(startDate) : true;
-    const matchesEnd = endDate ? actionDate <= new Date(endDate + 'T23:59:59') : true;
+  // Fetch paginated and filtered history directly from database
+  const fetchHistory = async () => {
+    try {
+      setLoading(true);
+      
+      const queryParams = new URLSearchParams({
+        page: page,
+        limit: 20 // Improved pagination limit: 20 records per page
+      });
+      
+      if (selectedEmpId) queryParams.append('employee_id', selectedEmpId);
+      if (startDate) queryParams.append('startDate', startDate);
+      if (endDate) queryParams.append('endDate', endDate);
 
-    return matchesEmp && matchesSearch && matchesStart && matchesEnd;
-  });
+      const { data: historyRes } = await api.get(`/ledger/history?${queryParams.toString()}`);
+      setHistory(historyRes.data || []);
+      setTotalPages(historyRes.totalPages || 1);
+      setTotal(historyRes.total || 0);
+    } catch (err) {
+      console.error('Error fetching ledger history', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  if (loading) return <div className="loading-state">Loading Ledger...</div>;
+  // Trigger refetch when page, employee, or dates change
+  useEffect(() => {
+    fetchHistory();
+  }, [page, selectedEmpId, startDate, endDate]);
+
+  if (loading && history.length === 0) return <div className="loading-state">Loading Ledger...</div>;
 
   return (
     <div className="fade-in">
@@ -81,23 +82,10 @@ const Ledger = () => {
 
         {/* Controls */}
         <div className="flex items-center gap-12" style={{ flex: 1, flexWrap: 'wrap' }}>
-          {/* Search */}
-          <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
-            <Search size={16} className="search-icon" />
-            <input
-              type="text"
-              className="input-field"
-              style={{ paddingLeft: '40px' }}
-              placeholder="Search by name, ID or details..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-            />
-          </div>
-
           {/* Employee Filter */}
           <select
             className="input-field"
-            style={{ width: '200px', flexShrink: 0 }}
+            style={{ width: '250px', flexShrink: 0 }}
             value={selectedEmpId}
             onChange={e => setSelectedEmpId(e.target.value)}
           >
@@ -131,13 +119,12 @@ const Ledger = () => {
           <button
             className="btn-secondary"
             style={{ padding: '10px 20px', flexShrink: 0 }}
-            onClick={() => { setSelectedEmpId(''); setSearchQuery(''); setStartDate(''); setEndDate(''); }}
+            onClick={() => { setSelectedEmpId(''); setStartDate(''); setEndDate(''); }}
           >
             Clear
           </button>
         </div>
       </div>
-
 
       <div className="premium-card">
         <div className="data-table-container">
@@ -152,7 +139,7 @@ const Ledger = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredHistory.map((item) => (
+              {history.map((item) => (
                 <tr key={item.id}>
                   <td className="text-small font-bold text-secondary">{new Date(item.action_date).toLocaleDateString()}</td>
                   <td className="text-small font-bold">{item.employee_id}</td>
@@ -171,7 +158,7 @@ const Ledger = () => {
                   </td>
                 </tr>
               ))}
-              {filteredHistory.length === 0 && (
+              {history.length === 0 && (
                 <tr>
                   <td colSpan="5" style={{ textAlign: 'center', padding: '60px', color: 'var(--text-light)' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -185,17 +172,53 @@ const Ledger = () => {
           </table>
         </div>
 
-        {/* Load More Button */}
-        {page < totalPages && (
-          <div className="flex justify-center mt-32">
-            <button 
-              className="btn-primary" 
-              style={{ padding: '12px 40px', minWidth: '200px' }}
-              onClick={() => fetchHistory(true)}
-              disabled={loadingMore}
-            >
-              {loadingMore ? 'Loading More...' : 'Load More History'}
-            </button>
+        {/* Elegant Pagination Switcher */}
+        {totalPages > 1 && (
+          <div className="flex-between mt-24" style={{ padding: '0 8px' }}>
+            <span className="text-small text-muted font-bold">
+              Showing {history.length} of {total} records (Page {page} of {totalPages})
+            </span>
+            <div className="flex items-center gap-8">
+              <button 
+                className="pagination-btn" 
+                disabled={page === 1 || loading}
+                onClick={() => setPage(prev => prev - 1)}
+                title="Previous Page"
+              >
+                <ChevronLeft size={16} />
+              </button>
+
+              <div className="flex items-center gap-4">
+                {[...Array(totalPages)].map((_, i) => {
+                  const pg = i + 1;
+                  if (totalPages > 7) {
+                    if (pg !== 1 && pg !== totalPages && Math.abs(pg - page) > 1) {
+                       if (pg === page - 2 || pg === page + 2) return <span key={pg} style={{ color: 'var(--text-light)', padding: '0 4px' }}>...</span>;
+                       return null;
+                    }
+                  }
+                  return (
+                    <button
+                      key={pg}
+                      className={`pagination-num ${page === pg ? 'active' : ''}`}
+                      onClick={() => setPage(pg)}
+                      disabled={loading}
+                    >
+                      {pg}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button 
+                className="pagination-btn" 
+                disabled={page === totalPages || loading}
+                onClick={() => setPage(prev => prev + 1)}
+                title="Next Page"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
           </div>
         )}
       </div>

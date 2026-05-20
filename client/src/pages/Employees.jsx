@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../utils/api';
-import { Search, UserPlus, FilePlus, RefreshCw, Send, Trash2, Edit, Users, FileText, RefreshCw as RefreshIcon, Clock } from 'lucide-react';
+import { Search, UserPlus, FilePlus, RefreshCw, Send, Trash2, Edit, Users, FileText, RefreshCw as RefreshIcon, Clock, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import RegisterEmployeeModal from '../components/modals/RegisterEmployeeModal';
 import EditEmployeeModal from '../components/modals/EditEmployeeModal';
 import EncodeLeaveModal from '../components/modals/EncodeLeaveModal';
@@ -11,7 +11,7 @@ import { useNotification } from '../context/NotificationContext';
 
 const Employees = () => {
   const navigate = useNavigate();
-  const { showToast, confirm } = useNotification();
+  const { showToast, confirm, showUndoToast } = useNotification();
   const [employees, setEmployees] = useState([]);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -139,6 +139,11 @@ const Employees = () => {
 
     if (!isConfirmed) return;
 
+    // Show Undo UI for 6 seconds
+    const proceed = await showUndoToast(`Archiving ${selectedEmp.full_name}...`, 6000);
+    
+    if (!proceed) return; // Action was undone
+
     try {
       await api.delete(`/employees/${selectedEmp.id}`);
       showToast('Employee archived and history preserved.', 'success');
@@ -236,11 +241,21 @@ const Employees = () => {
               <input
                 type="text"
                 className="input-field"
-                style={{ paddingLeft: '44px' }}
-                placeholder="Search by ID or Name..."
+                style={{ paddingLeft: '44px', paddingRight: search ? '40px' : '16px' }}
+                placeholder="Search by ID, Name, Position, Office, Status..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
               />
+              {search && (
+                <button
+                  type="button"
+                  className="search-clear-btn"
+                  onClick={() => setSearch('')}
+                  title="Clear search"
+                >
+                  <X size={16} />
+                </button>
+              )}
             </div>
           </div>
 
@@ -290,23 +305,47 @@ const Employees = () => {
             <span className="text-small text-muted font-bold">
               Showing {employees.length} of {totalEmployees} employees
             </span>
-            <div className="flex items-center gap-12">
+            <div className="flex items-center gap-8">
               <button
-                className="btn-secondary"
-                style={{ padding: '6px 16px', fontSize: '0.8rem' }}
+                className="pagination-btn"
                 disabled={currentPage === 1 || loading}
                 onClick={() => setCurrentPage(prev => prev - 1)}
+                title="Previous Page"
               >
-                Previous
+                <ChevronLeft size={16} />
               </button>
-              <span className="font-bold text-small" style={{ color: 'var(--accent)' }}>Page {currentPage} of {totalPages}</span>
+              
+              <div className="flex items-center gap-4">
+                {[...Array(totalPages)].map((_, i) => {
+                  const pg = i + 1;
+                  // Only show current, first, last, and neighbors if many pages
+                  if (totalPages > 7) {
+                    if (pg !== 1 && pg !== totalPages && Math.abs(pg - currentPage) > 1) {
+                       if (pg === currentPage - 2 || pg === currentPage + 2) return <span key={pg} style={{ color: 'var(--text-light)', padding: '0 4px' }}>...</span>;
+                       return null;
+                    }
+                  }
+                  
+                  return (
+                    <button
+                      key={pg}
+                      className={`pagination-num ${currentPage === pg ? 'active' : ''}`}
+                      onClick={() => setCurrentPage(pg)}
+                      disabled={loading}
+                    >
+                      {pg}
+                    </button>
+                  );
+                })}
+              </div>
+
               <button
-                className="btn-secondary"
-                style={{ padding: '6px 16px', fontSize: '0.8rem' }}
+                className="pagination-btn"
                 disabled={currentPage === totalPages || loading}
                 onClick={() => setCurrentPage(prev => prev + 1)}
+                title="Next Page"
               >
-                Next
+                <ChevronRight size={16} />
               </button>
             </div>
           </div>

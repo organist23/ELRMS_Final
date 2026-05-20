@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const db = require('./db');
 const bcrypt = require('bcrypt');
+const mysqldump = require('mysqldump');
 const SALT_ROUNDS = 10;
 
 const app = express();
@@ -90,8 +91,8 @@ app.get('/api/employees', async (req, res) => {
         let params = [];
 
         if (search) {
-            whereClause += ' AND (e.full_name LIKE ? OR e.id LIKE ?)';
-            params.push(`%${search}%`, `%${search}%`);
+            whereClause += ' AND (e.full_name LIKE ? OR e.id LIKE ? OR e.position LIKE ? OR e.office LIKE ? OR e.status LIKE ?)';
+            params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
         }
 
         // 1. Get Total Count for Pagination (Using LEFT JOIN to match data query)
@@ -392,6 +393,20 @@ app.post('/api/leaves/undo', async (req, res) => {
         if (apps.length === 0) throw new Error('Application not found');
         const app_data = apps[0];
         if (app_data.status !== 'Approved') throw new Error('Only approved applications can be undone');
+
+        // Check if the leave application belongs to a closed month (accrual already generated)
+        const leaveDate = app_data.date_to ? new Date(app_data.date_to) : new Date(app_data.applied_at);
+        const leaveMonth = leaveDate.getMonth() + 1;
+        const leaveYear = leaveDate.getFullYear();
+
+        const [accrualLogs] = await connection.execute(
+            'SELECT * FROM accrual_logs WHERE month = ? AND year = ?',
+            [leaveMonth, leaveYear]
+        );
+
+        if (accrualLogs.length > 0) {
+            throw new Error(`Undo Locked: This leave application belongs to a closed month (${leaveMonth}/${leaveYear}). To correct credits, please perform a Manual Balance Adjustment.`);
+        }
 
         const field_map = {
             'Vacation Leave': 'vacation_leave',
@@ -730,7 +745,8 @@ app.get('/api/leaves/history', async (req, res) => {
         const total = countRows[0].total;
 
         const [rows] = await db.execute(`
-            SELECT l.*, e.full_name
+            SELECT l.*, e.full_name,
+                   (SELECT COUNT(*) FROM accrual_logs a WHERE a.month = MONTH(COALESCE(l.date_to, l.applied_at)) AND a.year = YEAR(COALESCE(l.date_to, l.applied_at))) > 0 AS is_closed
             FROM leave_applications l
             JOIN employees e ON l.employee_id = e.id
             WHERE l.status != 'Pending Approval'
@@ -767,31 +783,56 @@ app.get('/api/stats', async (req, res) => {
 
 app.get('/api/ledger/history', async (req, res) => {
     try {
-        const { employee_id } = req.query;
+        const { employee_id, search, startDate, endDate } = req.query;
         const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 50;
+        const limit = parseInt(req.query.limit) || 20; // Improved pagination limit: 20 per page!
         const offset = (page - 1) * limit;
 
-        let query = `
-            SELECT l.*, e.full_name 
-            FROM ledger l 
-            JOIN employees e ON l.employee_id = e.id 
-        `;
-        let countQuery = `SELECT COUNT(*) as total FROM ledger l`;
+        let conditions = [];
         let params = [];
 
         if (employee_id) {
-            query += ` WHERE l.employee_id = ?`;
-            countQuery += ` WHERE l.employee_id = ?`;
+            conditions.push(`l.employee_id = ?`);
             params.push(employee_id);
         }
 
+        if (search) {
+            conditions.push(`(e.full_name LIKE ? OR l.employee_id LIKE ? OR l.transaction_desc LIKE ?)`);
+            const searchTerm = `%${search}%`;
+            params.push(searchTerm, searchTerm, searchTerm);
+        }
+
+        if (startDate) {
+            conditions.push(`l.action_date >= ?`);
+            params.push(startDate);
+        }
+
+        if (endDate) {
+            conditions.push(`l.action_date <= ?`);
+            params.push(`${endDate} 23:59:59`);
+        }
+
+        const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
         // Get total count
+        const countQuery = `
+            SELECT COUNT(*) as total 
+            FROM ledger l
+            JOIN employees e ON l.employee_id = e.id
+            ${whereClause}
+        `;
         const [countRows] = await db.execute(countQuery, params);
         const total = countRows[0].total;
 
         // Get paginated data
-        query += ` ORDER BY l.action_date DESC LIMIT ${limit} OFFSET ${offset}`;
+        const query = `
+            SELECT l.*, e.full_name 
+            FROM ledger l 
+            JOIN employees e ON l.employee_id = e.id 
+            ${whereClause}
+            ORDER BY l.action_date DESC, l.id DESC
+            LIMIT ${limit} OFFSET ${offset}
+        `;
         const [rows] = await db.execute(query, params);
 
         res.json({
@@ -1112,7 +1153,8 @@ app.get('/api/employees/:id/leave-card/:year', async (req, res) => {
 app.get('/api/tardy', async (req, res) => {
     try {
         const [rows] = await db.execute(`
-            SELECT t.*, e.full_name
+            SELECT t.*, e.full_name,
+                   (SELECT COUNT(*) FROM accrual_logs a WHERE a.month = MONTH(t.deduction_date) AND a.year = YEAR(t.deduction_date)) > 0 AS is_closed
             FROM tardy_deductions t
             JOIN employees e ON t.employee_id = e.id
             ORDER BY t.deduction_date DESC
@@ -1193,6 +1235,20 @@ app.post('/api/tardy/undo', async (req, res) => {
         if (rows.length === 0) throw new Error('Tardy record not found');
         const tardy = rows[0];
         if (tardy.status !== 'Deducted') throw new Error('Only active deductions can be undone');
+
+        // Check if the tardy record belongs to a closed month
+        const tardyDate = new Date(tardy.deduction_date);
+        const tardyMonth = tardyDate.getMonth() + 1;
+        const tardyYear = tardyDate.getFullYear();
+
+        const [accrualLogs] = await connection.execute(
+            'SELECT * FROM accrual_logs WHERE month = ? AND year = ?',
+            [tardyMonth, tardyYear]
+        );
+
+        if (accrualLogs.length > 0) {
+            throw new Error(`Undo Locked: This tardiness record belongs to a closed month (${tardyMonth}/${tardyYear}). To correct credits, please perform a Manual Balance Adjustment.`);
+        }
 
         const days = parseFloat(tardy.equivalent_day);
 
@@ -1312,6 +1368,31 @@ app.get('/api/ping', async (req, res) => {
             message = error.message;
         }
         res.status(500).json({ success: false, message });
+    }
+});
+
+// 7. System Utilities
+app.get('/api/system/backup', async (req, res) => {
+    try {
+        const dump = await mysqldump({
+            connection: {
+                host: process.env.DB_HOST || 'localhost',
+                user: process.env.DB_USER || 'root',
+                password: process.env.DB_PASSWORD === undefined ? 'admin' : process.env.DB_PASSWORD,
+                database: process.env.DB_NAME || 'elrms_v2',
+                port: parseInt(process.env.DB_PORT) || 3306
+            },
+        });
+        
+        // Combine schema and data for a full backup
+        const fullDump = dump.dump.schema + '\n\n' + dump.dump.data;
+        
+        res.setHeader('Content-Type', 'application/sql');
+        res.setHeader('Content-Disposition', `attachment; filename="elrms_backup_${new Date().toISOString().split('T')[0]}.sql"`);
+        res.send(fullDump);
+    } catch (error) {
+        console.error('Backup Error:', error);
+        res.status(500).json({ error: 'Database backup failed: ' + error.message });
     }
 });
 

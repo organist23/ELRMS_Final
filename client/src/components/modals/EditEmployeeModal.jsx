@@ -80,8 +80,10 @@ const EditEmployeeModal = ({ employee, onClose, onSuccess }) => {
               <label className="label">Status</label>
               <select className="input-field" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}>
                 <option value="PERMANENT">PERMANENT</option>
+                <option value="ELECTIVE">ELECTIVE</option>
                 <option value="CASUAL">CASUAL</option>
                 <option value="CONTRACTUAL">CONTRACTUAL</option>
+                <option value="CO TERMINUS">CO TERMINUS</option>
               </select>
             </div>
             <div className="form-group">
