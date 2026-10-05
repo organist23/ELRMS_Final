@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
-import { CheckCircle, AlertCircle, Info, X, HelpCircle } from 'lucide-react';
+import { CheckCircle, AlertCircle, Info, X, HelpCircle, RotateCcw } from 'lucide-react';
 
 const NotificationContext = createContext();
 
@@ -12,6 +12,7 @@ export const useNotification = () => {
 export const NotificationProvider = ({ children }) => {
   const [toasts, setToasts] = useState([]);
   const [confirmState, setConfirmState] = useState(null);
+  const [undoToast, setUndoToast] = useState(null);
 
   const showToast = useCallback((message, type = 'success', duration = 4000) => {
     const id = Date.now();
@@ -27,6 +28,29 @@ export const NotificationProvider = ({ children }) => {
     });
   }, []);
 
+  const showUndoToast = useCallback((message, duration = 6000) => {
+    return new Promise((resolve) => {
+      const id = Date.now();
+      setUndoToast({ id, message, duration, resolve });
+
+      const timer = setTimeout(() => {
+        setUndoToast(null);
+        resolve(true); // Proceed with action
+      }, duration);
+
+      // Store the timer ID to cancel it if undo is clicked
+      setUndoToast(prev => ({ ...prev, timer }));
+    });
+  }, []);
+
+  const handleUndo = () => {
+    if (undoToast) {
+      clearTimeout(undoToast.timer);
+      undoToast.resolve(false); // Cancel action
+      setUndoToast(null);
+    }
+  };
+
   const handleConfirm = (value) => {
     if (confirmState) {
       confirmState.resolve(value);
@@ -35,7 +59,7 @@ export const NotificationProvider = ({ children }) => {
   };
 
   return (
-    <NotificationContext.Provider value={{ showToast, confirm }}>
+    <NotificationContext.Provider value={{ showToast, confirm, showUndoToast }}>
       {children}
 
       {/* Toast Render System */}
@@ -69,6 +93,90 @@ export const NotificationProvider = ({ children }) => {
           </div>
         ))}
       </div>
+
+      {/* Undo Toast with Progress Bar */}
+      {undoToast && (
+        <div style={{
+          position: 'fixed',
+          bottom: '24px',
+          right: '24px',
+          zIndex: 10001,
+          pointerEvents: 'auto'
+        }}>
+          <div className="glass-effect slide-in" style={{
+            padding: '16px 24px',
+            borderRadius: '16px',
+            background: 'white',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px',
+            minWidth: '340px',
+            border: '1px solid var(--border)',
+            overflow: 'hidden'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div className="spinning" style={{ display: 'flex', alignItems: 'center' }}>
+                  <RotateCcw size={18} color="var(--primary)" />
+                </div>
+                <span style={{ fontWeight: '600', color: '#1e293b' }}>{undoToast.message}</span>
+              </div>
+              <button 
+                onClick={handleUndo}
+                style={{
+                  background: 'var(--primary-light)',
+                  color: 'var(--primary)',
+                  border: 'none',
+                  padding: '6px 14px',
+                  borderRadius: '8px',
+                  fontWeight: '800',
+                  fontSize: '0.8rem',
+                  cursor: 'pointer',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em'
+                }}
+              >
+                Undo
+              </button>
+            </div>
+            {/* Progress Bar Container */}
+            <div style={{ 
+              height: '4px', 
+              background: '#f1f5f9', 
+              borderRadius: '2px',
+              position: 'relative',
+              overflow: 'hidden'
+            }}>
+              <div 
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  height: '100%',
+                  background: 'var(--primary)',
+                  width: '100%',
+                  animation: `deplete ${undoToast.duration}ms linear forwards`
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes deplete {
+          from { width: 100%; }
+          to { width: 0%; }
+        }
+        .spinning {
+          animation: spin 2s linear infinite;
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(-360deg); }
+        }
+      `}</style>
 
       {/* Confirmation Modal Render System */}
       {confirmState && (

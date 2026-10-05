@@ -16,7 +16,16 @@ const EncodeLeaveModal = ({ employee, onClose, onSuccess }) => {
   });
 
   const earnedLeaves = ['Vacation Leave', 'Sick Leave'];
-  const privilegeLeaves = ['Special Leave', 'Force Leave', 'Wellness Leave', 'Solo Parent Leave'];
+  const privilegeLeaves = ['Special Leave', 'Force Leave', 'Wellness Leave', 'Solo Parent Leave', 'Maternity Leave', 'Paternity Leave', 'Special Benefits for Women']
+    .filter(l => {
+      if (employee.sex === 'Male') {
+        return l !== 'Maternity Leave' && l !== 'Special Benefits for Women';
+      }
+      if (employee.sex === 'Female') {
+        return l !== 'Paternity Leave';
+      }
+      return true;
+    });
 
   // Smart Parser for non-contiguous dates
   const parseInclusiveDates = (str) => {
@@ -75,8 +84,15 @@ const EncodeLeaveModal = ({ employee, onClose, onSuccess }) => {
     setLeaveData(newData);
   };
 
+  // Wellness Leave first-application policy check
+  // First application = balance is still at full default (5 days)
+  const isFirstWellness = leaveData.leave_type === 'Wellness Leave' && Number(employee.wellness_leave) === 5;
+  const wellnessWarning = isFirstWellness && (leaveData.num_days > 3 || leaveData.num_days < 1);
+  const isInvalidRange = leaveData.date_from && leaveData.date_to && new Date(leaveData.date_to) < new Date(leaveData.date_from);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (wellnessWarning || isInvalidRange) return; // Guard
     try {
       await api.post('/leaves/apply', leaveData);
       showToast('Leave application submitted for approval', 'success');
@@ -121,6 +137,7 @@ const EncodeLeaveModal = ({ employee, onClose, onSuccess }) => {
               <input 
                 type="date" 
                 className="input-field" 
+                style={{ borderColor: isInvalidRange ? '#dc2626' : '' }}
                 value={leaveData.date_from} 
                 onChange={e => handleDateChange('date_from', e.target.value)} 
               />
@@ -130,11 +147,18 @@ const EncodeLeaveModal = ({ employee, onClose, onSuccess }) => {
               <input 
                 type="date" 
                 className="input-field" 
+                style={{ borderColor: isInvalidRange ? '#dc2626' : '' }}
                 value={leaveData.date_to} 
                 onChange={e => handleDateChange('date_to', e.target.value)} 
               />
             </div>
           </div>
+
+          {isInvalidRange && (
+            <p style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '-12px', marginBottom: '16px', fontWeight: 600 }}>
+              ⚠ Invalid Range: "Date To" cannot be earlier than "Date From".
+            </p>
+          )}
 
           <div className="form-group">
             <label className="label">Inclusive Dates</label>
@@ -151,13 +175,23 @@ const EncodeLeaveModal = ({ employee, onClose, onSuccess }) => {
           <div className="form-group">
             <label className="label">Number of Days</label>
             <input 
-              type="number" 
-              step="0.5" 
+              type="text" 
               className="input-field" 
-              required 
+              readOnly
               value={leaveData.num_days} 
-              onChange={e => setLeaveData({...leaveData, num_days: parseFloat(e.target.value)})} 
+              style={{ 
+                borderColor: wellnessWarning ? '#dc2626' : '',
+                backgroundColor: '#f8fafc',
+                cursor: 'not-allowed',
+                fontWeight: 'bold',
+                color: 'var(--primary)'
+              }}
             />
+            {wellnessWarning && (
+              <p style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '6px', fontWeight: 600, lineHeight: 1.4 }}>
+                ⚠ Wellness Leave Policy: The first application is limited to a maximum of 3 days (minimum of 1 day).
+              </p>
+            )}
           </div>
 
           <div className="form-group">
@@ -173,7 +207,12 @@ const EncodeLeaveModal = ({ employee, onClose, onSuccess }) => {
 
           <div className="flex-between" style={{ marginTop: '40px', gap: '16px' }}>
             <button type="button" className="btn-secondary" style={{ flex: 1 }} onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn-primary" style={{ flex: 1.5 }}>
+            <button 
+              type="submit" 
+              className="btn-primary" 
+              style={{ flex: 1.5, opacity: (wellnessWarning || isInvalidRange) ? 0.5 : 1, cursor: (wellnessWarning || isInvalidRange) ? 'not-allowed' : 'pointer' }}
+              disabled={wellnessWarning || isInvalidRange}
+            >
               <Calendar size={18} />
               Submit Application
             </button>

@@ -1,6 +1,9 @@
 const express = require('express');
 const cors = require('cors');
 const db = require('./db');
+const bcrypt = require('bcrypt');
+const mysqldump = require('mysqldump');
+const SALT_ROUNDS = 10;
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -8,20 +11,54 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
+const LEAVE_TYPES = {
+    SPECIAL: 'Special Leave',
+    FORCE: 'Force Leave',
+    WELLNESS: 'Wellness Leave',
+    SOLO_PARENT: 'Solo Parent Leave',
+    MATERNITY: 'Maternity Leave',
+    PATERNITY: 'Paternity Leave',
+    SBW: 'Special Benefits for Women'
+};
+
+// --- AUTO-MIGRATION: Hash plain text passwords on startup ---
+async function migratePasswords() {
+    try {
+        const [users] = await db.execute('SELECT id, password FROM admin_users');
+        for (const user of users) {
+            const alreadyHashed = user.password && user.password.startsWith('$2b$');
+            if (!alreadyHashed) {
+                const hashed = await bcrypt.hash(user.password, SALT_ROUNDS);
+                await db.execute('UPDATE admin_users SET password = ? WHERE id = ?', [hashed, user.id]);
+                console.log(`[Security] Migrated password for user ID: ${user.id}`);
+            }
+        }
+    } catch (err) {
+        console.error('[Security] Password migration failed:', err.message);
+    }
+}
+migratePasswords();
+
 // --- ROUTES ---
 
 // 1. Authentication
 app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
     try {
-        const [users] = await db.execute('SELECT * FROM admin_users WHERE username = ? AND password = ?', [username, password]);
-        if (users.length > 0) {
-            res.json({ success: true, user: { username: users[0].username } });
-        } else {
-            res.status(401).json({ success: false, message: 'Invalid credentials' });
+        // 1. Find user by username only (never compare plain text)
+        const [users] = await db.execute('SELECT * FROM admin_users WHERE username = ?', [username]);
+        if (users.length === 0) {
+            return res.status(401).json({ success: false, message: 'Invalid credentials.' });
         }
+        // 2. Compare typed password against stored hash
+        const isMatch = await bcrypt.compare(password, users[0].password);
+        if (!isMatch) {
+            return res.status(401).json({ success: false, message: 'Invalid credentials.' });
+        }
+        res.json({ success: true, user: { username: users[0].username } });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Login Error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -33,7 +70,9 @@ app.put('/api/auth/reset-password', async (req, res) => {
         if (users.length === 0) {
             return res.status(404).json({ error: 'Username not found.' });
         }
-        await db.execute('UPDATE admin_users SET password = ? WHERE username = ?', [newPassword, username]);
+        // Hash the new password before saving
+        const hashed = await bcrypt.hash(newPassword, SALT_ROUNDS);
+        await db.execute('UPDATE admin_users SET password = ? WHERE username = ?', [hashed, username]);
         res.json({ success: true, message: 'Password updated successfully.' });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -43,37 +82,71 @@ app.put('/api/auth/reset-password', async (req, res) => {
 // 2. Employees CRUD
 app.get('/api/employees', async (req, res) => {
     try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const search = req.query.search || '';
+        const includeInactive = req.query.include_inactive === 'true';
+        const offset = (page - 1) * limit;
+
+        // By default only fetch active employees; pass include_inactive=true to fetch all
+        let whereClause = includeInactive ? 'WHERE 1=1' : 'WHERE e.is_active = 1';
+        let params = [];
+
+        if (search) {
+            whereClause += ' AND (e.full_name LIKE ? OR e.id LIKE ? OR e.position LIKE ? OR e.office LIKE ? OR e.status LIKE ?)';
+            params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
+        }
+
+        // 1. Get Total Count for Pagination (Using LEFT JOIN to match data query)
+        const [countRows] = await db.execute(`
+            SELECT COUNT(*) as total 
+            FROM employees e 
+            LEFT JOIN leave_balances b ON e.id = b.employee_id
+            ${whereClause}
+        `, params);
+        const total = countRows[0].total;
+
+        // 2. Get Paginated Data
         const [rows] = await db.execute(`
-            SELECT e.*, b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.bbw_vl, b.bbw_sl, b.forwarded_vl, b.forwarded_sl
+            SELECT e.*, b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.maternity_leave, b.paternity_leave, b.special_benefits_for_women, b.bbw_vl, b.bbw_sl, b.forwarded_vl, b.forwarded_sl
             FROM employees e
-            JOIN leave_balances b ON e.id = b.employee_id
-            WHERE e.is_active = 1
-        `);
-        res.json(rows);
+            LEFT JOIN leave_balances b ON e.id = b.employee_id
+            ${whereClause}
+            ORDER BY e.full_name ASC
+            LIMIT ${limit} OFFSET ${offset}
+        `, params);
+
+        res.json({
+            data: rows,
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit)
+        });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
 
 app.post('/api/employees', async (req, res) => {
-    const { id, full_name, civil_status, gsis_policy, position, entrance_of_duty, tin, status, office, initial_vl, initial_sl } = req.body;
+    const { id, full_name, sex, civil_status, gsis_policy, position, entrance_of_duty, tin, status, office, initial_vl, initial_sl } = req.body;
     const connection = await db.getConnection();
     try {
         await connection.beginTransaction();
         
         await connection.execute(
-            'INSERT INTO employees (id, full_name, civil_status, gsis_policy, position, entrance_of_duty, tin, status, office) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [id, full_name, civil_status, gsis_policy, position, entrance_of_duty, tin, status, office]
+            'INSERT INTO employees (id, full_name, sex, civil_status, gsis_policy, position, entrance_of_duty, tin, status, office) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [id, full_name, sex, civil_status, gsis_policy, position, entrance_of_duty, tin, status, office]
         );
 
         await connection.execute(
-            'INSERT INTO leave_balances (employee_id, vacation_leave, sick_leave, bbw_vl, bbw_sl, forwarded_vl, forwarded_sl) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [id, initial_vl || 0, initial_sl || 0, initial_vl || 0, initial_sl || 0, initial_vl || 0, initial_sl || 0]
+            'INSERT INTO leave_balances (employee_id, vacation_leave, sick_leave, bbw_vl, bbw_sl, forwarded_vl, forwarded_sl, special_benefits_for_women, paternity_leave) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [id, initial_vl || 0, initial_sl || 0, initial_vl || 0, initial_sl || 0, initial_vl || 0, initial_sl || 0, 30, sex === 'Male' ? 7 : 0]
         );
 
         await connection.execute(
-            'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, transaction_type, remarks, period_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [id, 'First Registration: Initial Balance Set', initial_vl || 0, initial_sl || 0, 3, 5, 5, 7, 'REGISTRATION', 'Initial Balance', new Date().getFullYear()]
+            'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, mat_bal, pat_bal, sbw_bal, transaction_type, remarks, period_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [id, 'First Registration: Initial Balance Set', initial_vl || 0, initial_sl || 0, 3, 5, 5, 7, 105, 7, 30, 'REGISTRATION', 'Initial Balance', new Date().getFullYear()]
         );
 
         await connection.commit();
@@ -87,20 +160,27 @@ app.post('/api/employees', async (req, res) => {
 });
 
 app.put('/api/employees/:id', async (req, res) => {
-    const { full_name, civil_status, gsis_policy, position, entrance_of_duty, tin, status, office, vacation_leave, sick_leave } = req.body;
+    const { full_name, sex, civil_status, gsis_policy, position, entrance_of_duty, tin, status, office, vacation_leave, sick_leave } = req.body;
     const connection = await db.getConnection();
     try {
         await connection.beginTransaction();
 
         // 1. Get old balances for comparison
-        const [old] = await connection.execute('SELECT * FROM leave_balances WHERE employee_id = ?', [req.params.id]);
+        const [old] = await connection.execute('SELECT * FROM leave_balances WHERE employee_id = ? FOR UPDATE', [req.params.id]);
+        if (old.length === 0) throw new Error('Employee not found');
+        
         const old_vl = old[0]?.vacation_leave || 0;
         const old_sl = old[0]?.sick_leave || 0;
 
+        // Validation: Prevent negative balances
+        if (parseFloat(vacation_leave) < 0 || parseFloat(sick_leave) < 0) {
+            throw new Error('Balances cannot be negative.');
+        }
+
         // 2. Update credentials
         await connection.execute(
-            'UPDATE employees SET full_name=?, civil_status=?, gsis_policy=?, position=?, entrance_of_duty=?, tin=?, status=?, office=? WHERE id=?',
-            [full_name, civil_status, gsis_policy, position, entrance_of_duty, tin, status, office, req.params.id]
+            'UPDATE employees SET full_name=?, sex=?, civil_status=?, gsis_policy=?, position=?, entrance_of_duty=?, tin=?, status=?, office=? WHERE id=?',
+            [full_name, sex, civil_status, gsis_policy, position, entrance_of_duty, tin, status, office, req.params.id]
         );
 
         // 3. Update balances (VL and SL only)
@@ -110,20 +190,19 @@ app.put('/api/employees/:id', async (req, res) => {
         );
 
         // 4. Ledger entry if balances changed
-        if (parseFloat(old_vl) !== parseFloat(vacation_leave) || parseFloat(old_sl) !== parseFloat(sick_leave)) {
+        if (Math.abs(parseFloat(old_vl) - parseFloat(vacation_leave)) > 0.0001 || Math.abs(parseFloat(old_sl) - parseFloat(sick_leave)) > 0.0001) {
             const [b_rows] = await connection.execute('SELECT * FROM leave_balances WHERE employee_id = ?', [req.params.id]);
             const b = b_rows[0];
             const desc = `Manual Update: ${full_name}'s balances adjusted by Admin. (Old VL: ${parseFloat(old_vl).toFixed(3)}, Old SL: ${parseFloat(old_sl).toFixed(3)})`;
             
-            // Determine which leave was updated for the leave_type column
             let updatedTypes = [];
-            if (parseFloat(old_vl) !== parseFloat(vacation_leave)) updatedTypes.push('VL');
-            if (parseFloat(old_sl) !== parseFloat(sick_leave)) updatedTypes.push('SL');
+            if (Math.abs(parseFloat(old_vl) - parseFloat(vacation_leave)) > 0.0001) updatedTypes.push('VL');
+            if (Math.abs(parseFloat(old_sl) - parseFloat(sick_leave)) > 0.0001) updatedTypes.push('SL');
             const leaveTypeLabel = updatedTypes.join('/') || 'ADJUSTMENT';
 
             await connection.execute(
-                'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, transaction_type, leave_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                [req.params.id, desc, b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, 'MANUAL', leaveTypeLabel]
+                'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, mat_bal, pat_bal, sbw_bal, transaction_type, leave_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                [req.params.id, desc, b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.maternity_leave, b.paternity_leave, b.special_benefits_for_women, 'MANUAL', leaveTypeLabel]
             );
         }
 
@@ -131,7 +210,8 @@ app.put('/api/employees/:id', async (req, res) => {
         res.json({ success: true, message: 'Employee and balances updated' });
     } catch (error) {
         await connection.rollback();
-        res.status(500).json({ error: error.message });
+        console.error('Update Error:', error.message);
+        res.status(400).json({ error: error.message });
     } finally {
         connection.release();
     }
@@ -150,8 +230,8 @@ app.delete('/api/employees/:id', async (req, res) => {
         const b = b_rows[0];
         
         await connection.execute(
-            'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-            [req.params.id, 'Account Archived: Employee moved to inactive records.', b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave]
+            'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, mat_bal, pat_bal, sbw_bal) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [req.params.id, 'Account Archived: Employee moved to inactive records.', b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.maternity_leave, b.paternity_leave, b.special_benefits_for_women]
         );
 
         await connection.commit();
@@ -168,7 +248,8 @@ app.delete('/api/employees/:id', async (req, res) => {
 app.get('/api/leaves/pending', async (req, res) => {
     try {
         const [rows] = await db.execute(`
-            SELECT l.*, e.full_name
+            SELECT l.*, e.full_name,
+                   (SELECT COUNT(*) FROM accrual_logs a WHERE (a.year > YEAR(l.applied_at)) OR (a.year = YEAR(l.applied_at) AND a.month >= MONTH(l.applied_at))) > 0 AS is_closed
             FROM leave_applications l
             JOIN employees e ON l.employee_id = e.id
             WHERE l.status = 'Pending Approval'
@@ -187,23 +268,33 @@ app.post('/api/leaves/apply', async (req, res) => {
         const clean_from = date_from || null;
         const clean_to = date_to || null;
 
+        if (clean_from && clean_to && new Date(clean_to) < new Date(clean_from)) {
+            return res.status(400).json({ error: 'Invalid Date Range: "Date To" cannot be earlier than "Date From".' });
+        }
+
         // Validation check for privileges
         const [balanceRows] = await db.execute('SELECT * FROM leave_balances WHERE employee_id = ?', [employee_id]);
         if (balanceRows.length === 0) return res.status(404).json({ error: 'Employee balance not found' });
         
         const balance = balanceRows[0];
         const limits = {
-            'Special Leave': 3,
-            'Force Leave': 5,
-            'Wellness Leave': 5,
-            'Solo Parent Leave': 7
+            [LEAVE_TYPES.SPECIAL]: 3,
+            [LEAVE_TYPES.FORCE]: 5,
+            [LEAVE_TYPES.WELLNESS]: 5,
+            [LEAVE_TYPES.SOLO_PARENT]: 7,
+            [LEAVE_TYPES.MATERNITY]: 105,
+            [LEAVE_TYPES.PATERNITY]: 7,
+            [LEAVE_TYPES.SBW]: 30
         };
 
         const field_map = {
-            'Special Leave': 'special_leave',
-            'Force Leave': 'force_leave',
-            'Wellness Leave': 'wellness_leave',
-            'Solo Parent Leave': 'solo_parent_leave'
+            [LEAVE_TYPES.SPECIAL]: 'special_leave',
+            [LEAVE_TYPES.FORCE]: 'force_leave',
+            [LEAVE_TYPES.WELLNESS]: 'wellness_leave',
+            [LEAVE_TYPES.SOLO_PARENT]: 'solo_parent_leave',
+            [LEAVE_TYPES.MATERNITY]: 'maternity_leave',
+            [LEAVE_TYPES.PATERNITY]: 'paternity_leave',
+            [LEAVE_TYPES.SBW]: 'special_benefits_for_women'
         };
 
         if (limits[leave_type]) {
@@ -215,8 +306,8 @@ app.post('/api/leaves/apply', async (req, res) => {
         }
 
         await db.execute(
-            'INSERT INTO leave_applications (employee_id, leave_type, date_from, date_to, num_days, inclusive_dates, reason) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [employee_id, leave_type, clean_from, clean_to, num_days, inclusive_dates, reason]
+            'INSERT INTO leave_applications (employee_id, leave_type, date_from, date_to, num_days, inclusive_dates, reason, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            [employee_id, leave_type, clean_from, clean_to, num_days, inclusive_dates, reason, 'Pending Approval']
         );
         res.json({ success: true });
     } catch (error) {
@@ -234,13 +325,28 @@ app.post('/api/leaves/approve', async (req, res) => {
         if (apps.length === 0) throw new Error('Application not found');
         const app_data = apps[0];
 
+        // Check if the leave application belongs to a closed month (accrual already generated)
+        const leaveDateApprove = new Date(app_data.applied_at);
+        const leaveMonthApprove = leaveDateApprove.getMonth() + 1;
+        const leaveYearApprove = leaveDateApprove.getFullYear();
+        const [accrualLogsApprove] = await connection.execute(
+            'SELECT * FROM accrual_logs WHERE (year > ?) OR (year = ? AND month >= ?)',
+            [leaveYearApprove, leaveYearApprove, leaveMonthApprove]
+        );
+        if (accrualLogsApprove.length > 0) {
+            throw new Error(`Approve Locked: This leave application belongs to a closed month (${leaveMonthApprove}/${leaveYearApprove}). To correct credits, please perform a Manual Balance Adjustment.`);
+        }
+
         const field_map = {
             'Vacation Leave': 'vacation_leave',
             'Sick Leave': 'sick_leave',
             'Special Leave': 'special_leave',
             'Force Leave': 'force_leave',
             'Wellness Leave': 'wellness_leave',
-            'Solo Parent Leave': 'solo_parent_leave'
+            'Solo Parent Leave': 'solo_parent_leave',
+            'Maternity Leave': 'maternity_leave',
+            'Paternity Leave': 'paternity_leave',
+            'Special Benefits for Women': 'special_benefits_for_women'
         };
         const field = field_map[app_data.leave_type];
         
@@ -278,8 +384,8 @@ app.post('/api/leaves/approve', async (req, res) => {
         const leave_type_short = app_data.leave_type === 'Vacation Leave' ? 'VL' : (app_data.leave_type === 'Sick Leave' ? 'SL' : app_data.leave_type);
 
         await connection.execute(
-            'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, transaction_type, leave_type, deducted_with_pay, deducted_without_pay, remarks, period_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [app_data.employee_id, desc, b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, 'LEAVE', leave_type_short, with_pay, without_pay, app_data.reason, app_data.inclusive_dates]
+            'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, mat_bal, pat_bal, sbw_bal, transaction_type, leave_type, deducted_with_pay, deducted_without_pay, remarks, period_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [app_data.employee_id, desc, b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.maternity_leave, b.paternity_leave, b.special_benefits_for_women, 'LEAVE', leave_type_short, with_pay, without_pay, app_data.reason, app_data.inclusive_dates]
         );
 
         await connection.commit();
@@ -303,13 +409,30 @@ app.post('/api/leaves/undo', async (req, res) => {
         const app_data = apps[0];
         if (app_data.status !== 'Approved') throw new Error('Only approved applications can be undone');
 
+        // Check if the leave application belongs to a closed month (accrual already generated)
+        const leaveDate = new Date(app_data.applied_at);
+        const leaveMonth = leaveDate.getMonth() + 1;
+        const leaveYear = leaveDate.getFullYear();
+
+        const [accrualLogs] = await connection.execute(
+            'SELECT * FROM accrual_logs WHERE (year > ?) OR (year = ? AND month >= ?)',
+            [leaveYear, leaveYear, leaveMonth]
+        );
+
+        if (accrualLogs.length > 0) {
+            throw new Error(`Undo Locked: This leave application belongs to a closed month (${leaveMonth}/${leaveYear}). To correct credits, please perform a Manual Balance Adjustment.`);
+        }
+
         const field_map = {
             'Vacation Leave': 'vacation_leave',
             'Sick Leave': 'sick_leave',
             'Special Leave': 'special_leave',
             'Force Leave': 'force_leave',
             'Wellness Leave': 'wellness_leave',
-            'Solo Parent Leave': 'solo_parent_leave'
+            'Solo Parent Leave': 'solo_parent_leave',
+            'Maternity Leave': 'maternity_leave',
+            'Paternity Leave': 'paternity_leave',
+            'Special Benefits for Women': 'special_benefits_for_women'
         };
         const field = field_map[app_data.leave_type];
 
@@ -329,8 +452,8 @@ app.post('/api/leaves/undo', async (req, res) => {
         const restoredDays = parseFloat(app_data.with_pay);
 
         await connection.execute(
-            'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, transaction_type, leave_type, deducted_with_pay, period_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [app_data.employee_id, `UNDO APPROVAL: Restored ${restoredDays} days to ${app_data.leave_type}`, b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, 'UNDO', leaveTypeCode, restoredDays, app_data.inclusive_dates || null]
+            'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, mat_bal, pat_bal, sbw_bal, transaction_type, leave_type, deducted_with_pay, period_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [app_data.employee_id, `UNDO APPROVAL: Restored ${restoredDays} days to ${app_data.leave_type}`, b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.maternity_leave, b.paternity_leave, b.special_benefits_for_women, 'UNDO', leaveTypeCode, restoredDays, app_data.inclusive_dates || null]
         );
 
         await connection.commit();
@@ -345,11 +468,89 @@ app.post('/api/leaves/undo', async (req, res) => {
 
 app.post('/api/leaves/reject', async (req, res) => {
     const { application_id } = req.body;
+    const connection = await db.getConnection();
     try {
-        await db.execute('UPDATE leave_applications SET status = "Rejected" WHERE id = ?', [application_id]);
+        await connection.beginTransaction();
+
+        const [apps] = await connection.execute('SELECT * FROM leave_applications WHERE id = ?', [application_id]);
+        if (apps.length === 0) throw new Error('Application not found');
+        const app_data = apps[0];
+
+        // Check if the leave application belongs to a closed month (accrual already generated)
+        const leaveDateReject = new Date(app_data.applied_at);
+        const leaveMonthReject = leaveDateReject.getMonth() + 1;
+        const leaveYearReject = leaveDateReject.getFullYear();
+        const [accrualLogsReject] = await connection.execute(
+            'SELECT * FROM accrual_logs WHERE (year > ?) OR (year = ? AND month >= ?)',
+            [leaveYearReject, leaveYearReject, leaveMonthReject]
+        );
+        if (accrualLogsReject.length > 0) {
+            throw new Error(`Reject Locked: This leave application belongs to a closed month (${leaveMonthReject}/${leaveYearReject}). To correct credits, please perform a Manual Balance Adjustment.`);
+        }
+
+        if (app_data.leave_type === LEAVE_TYPES.FORCE) {
+            // === FORCE LEAVE SPECIAL CASE: Exigency of Service ===
+            // Rejected Force Leave days are transferred to Vacation Leave
+            const transferDays = parseFloat(app_data.num_days || 0);
+
+            // 1. Deduct from force_leave balance, credit to vacation_leave
+            await connection.execute(
+                'UPDATE leave_balances SET force_leave = force_leave - ?, vacation_leave = vacation_leave + ? WHERE employee_id = ?',
+                [transferDays, transferDays, app_data.employee_id]
+            );
+
+            // 2. Reject the application
+            await connection.execute('UPDATE leave_applications SET status = "Rejected" WHERE id = ?', [application_id]);
+
+            // 3. Take a fresh snapshot of all balances after the update
+            const [new_bal] = await connection.execute('SELECT * FROM leave_balances WHERE employee_id = ?', [app_data.employee_id]);
+            const b = new_bal[0];
+
+            // 4. DOUBLE ENTRY LEDGER SYSTEM:
+            
+            // ENTRY A: Updates the VL Card (The "Credit")
+            // Routes to VL Card via leave_type='VL'. Shows as "Earned" via balance diff.
+            await connection.execute(
+                'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, mat_bal, pat_bal, sbw_bal, transaction_type, leave_type, earned, remarks, period_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                [
+                    app_data.employee_id,
+                    'VL Transfer (Force Leave Rejected)',
+                    b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.maternity_leave, b.paternity_leave, b.special_benefits_for_women,
+                    'TRANSFER',
+                    'VL',
+                    transferDays,
+                    'Exigency of Service: Force Leave transferred to VL',
+                    app_data.inclusive_dates || null
+                ]
+            );
+
+            // ENTRY B: Updates the Privilege Card (The "Debit")
+            // Routes to Privilege Card via leave_type='Force Leave'. Shows as "Absence w/ Pay" via balance diff.
+            await connection.execute(
+                'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, mat_bal, pat_bal, sbw_bal, transaction_type, leave_type, earned, remarks, period_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                [
+                    app_data.employee_id,
+                    'VL Transfer (Force Leave Rejected)',
+                    b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.maternity_leave, b.paternity_leave, b.special_benefits_for_women,
+                    'TRANSFER',
+                    LEAVE_TYPES.FORCE,
+                    0,
+                    'Exigency of Service: Transferred to VL',
+                    app_data.inclusive_dates || null
+                ]
+            );
+        } else {
+            // === STANDARD REJECTION: No balance changes, simple status update ===
+            await connection.execute('UPDATE leave_applications SET status = "Rejected" WHERE id = ?', [application_id]);
+        }
+
+        await connection.commit();
         res.json({ success: true });
     } catch (error) {
+        await connection.rollback();
         res.status(500).json({ error: error.message });
+    } finally {
+        connection.release();
     }
 });
 
@@ -363,6 +564,22 @@ app.post('/api/accrual/generate', async (req, res) => {
         // 1. Check if already generated
         const [logs] = await connection.execute('SELECT * FROM accrual_logs WHERE month = ? AND year = ?', [month, year]);
         if (logs.length > 0) throw new Error('Credits already generated for this month and year');
+
+        // 2. CHECK: Yearly Rollover for previous year must be completed (If legacy employees exist)
+        const prevYear = parseInt(year) - 1;
+        const [rolloverCheck] = await connection.execute(
+            'SELECT * FROM yearly_action_logs WHERE action_type = "ROLLOVER" AND year = ?',
+            [prevYear]
+        );
+        
+        const [legacyCheck] = await connection.execute(
+            'SELECT * FROM employees WHERE YEAR(created_at) < ? AND is_active = 1 LIMIT 1',
+            [year]
+        );
+
+        if (legacyCheck.length > 0 && rolloverCheck.length === 0) {
+            throw new Error(`Cannot generate credits for ${year}. The Yearly Rollover for ${prevYear} is still pending because legacy employees exist.`);
+        }
 
         // 2. Add 1.25 to all active employees
         await connection.execute(`
@@ -391,12 +608,12 @@ app.post('/api/accrual/generate', async (req, res) => {
             const ledgerRows = balances.map(b => [
                 b.employee_id, 
                 `Monthly Accrual: ${month}/${year} (+1.25 VL/SL)`, 
-                b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, 
+                b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.maternity_leave, b.paternity_leave, b.special_benefits_for_women,
                 'CREDIT', 1.25, 'Monthly Credit', periodText
             ]);
 
             await connection.query(
-                'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, transaction_type, earned, remarks, period_text) VALUES ?',
+                'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, mat_bal, pat_bal, sbw_bal, transaction_type, earned, remarks, period_text) VALUES ?',
                 [ledgerRows]
             );
         }
@@ -438,7 +655,10 @@ app.post('/api/accrual/rollover', async (req, res) => {
                 lb.special_leave = 3.000, 
                 lb.force_leave = 5.000, 
                 lb.wellness_leave = 5.000, 
-                lb.solo_parent_leave = 7.000
+                lb.solo_parent_leave = 7.000,
+                lb.maternity_leave = 105.000,
+                lb.paternity_leave = (CASE WHEN e.sex = 'Male' THEN 7.000 ELSE 0.000 END),
+                lb.special_benefits_for_women = 30.000
             WHERE e.is_active = 1
         `);
 
@@ -455,12 +675,12 @@ app.post('/api/accrual/rollover', async (req, res) => {
             const ledgerRows = balances.map(b => [
                 b.employee_id, 
                 `Yearly Initialization (${from_year} -> ${to_year}): Balances Forwarded & Privilege Leaves Reset`, 
-                b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, 
-                'ROLLOVER', `Yearly Rollover ${from_year} to ${to_year}`, to_year.toString()
+                b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.maternity_leave, b.paternity_leave, b.special_benefits_for_women,
+                'ROLLOVER', 0, `Yearly Rollover ${from_year} to ${to_year}`, to_year.toString()
             ]);
 
             await connection.query(
-                'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, transaction_type, remarks, period_text) VALUES ?',
+                'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, mat_bal, pat_bal, sbw_bal, transaction_type, earned, remarks, period_text) VALUES ?',
                 [ledgerRows]
             );
 
@@ -517,9 +737,18 @@ app.get('/api/system/audit', async (req, res) => {
             [prevYear]
         );
 
+        // 3. SMART CHECK: Only require rollover if there are employees from previous years
+        const [legacyEmployees] = await db.execute(
+            'SELECT * FROM employees WHERE YEAR(created_at) < ? AND is_active = 1 LIMIT 1',
+            [currentYear]
+        );
+        
+        // Rollover is only pending if legacy employees exist AND no rollover log is found
+        const isRolloverPending = legacyEmployees.length > 0 && rolloverLogs.length === 0;
+
         res.json({
             pendingAccrual: accrualLogs.length === 0,
-            pendingRollover: rolloverLogs.length === 0,
+            pendingRollover: isRolloverPending,
             month: currentMonth,
             year: currentYear,
             prevYear: prevYear
@@ -531,14 +760,48 @@ app.get('/api/system/audit', async (req, res) => {
 
 app.get('/api/leaves/history', async (req, res) => {
     try {
-        const [rows] = await db.execute(`
-            SELECT l.*, e.full_name
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const search = req.query.search || '';
+        const offset = (page - 1) * limit;
+
+        let countQuery = `
+            SELECT COUNT(*) as total 
             FROM leave_applications l
             JOIN employees e ON l.employee_id = e.id
             WHERE l.status != 'Pending Approval'
-            ORDER BY l.applied_at DESC
-        `);
-        res.json(rows);
+        `;
+        let dataQuery = `
+            SELECT l.*, e.full_name,
+                   (SELECT COUNT(*) FROM accrual_logs a WHERE (a.year > YEAR(l.applied_at)) OR (a.year = YEAR(l.applied_at) AND a.month >= MONTH(l.applied_at))) > 0 AS is_closed
+            FROM leave_applications l
+            JOIN employees e ON l.employee_id = e.id
+            WHERE l.status != 'Pending Approval'
+        `;
+        
+        let queryParams = [];
+        
+        if (search) {
+            const searchTerm = `%${search}%`;
+            countQuery += ` AND (e.full_name LIKE ? OR l.employee_id LIKE ?)`;
+            dataQuery += ` AND (e.full_name LIKE ? OR l.employee_id LIKE ?)`;
+            queryParams.push(searchTerm, searchTerm);
+        }
+        
+        dataQuery += ` ORDER BY l.applied_at DESC LIMIT ${limit} OFFSET ${offset}`;
+
+        const [countRows] = await db.execute(countQuery, queryParams);
+        const total = countRows[0].total;
+
+        const [rows] = await db.execute(dataQuery, queryParams);
+
+        res.json({
+            data: rows,
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit)
+        });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -561,28 +824,68 @@ app.get('/api/stats', async (req, res) => {
 
 app.get('/api/ledger/history', async (req, res) => {
     try {
-        const { employee_id } = req.query;
-        let query = `
+        const { employee_id, search, startDate, endDate } = req.query;
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20; // Improved pagination limit: 20 per page!
+        const offset = (page - 1) * limit;
+
+        let conditions = [];
+        let params = [];
+
+        if (employee_id) {
+            conditions.push(`l.employee_id = ?`);
+            params.push(employee_id);
+        }
+
+        if (search) {
+            conditions.push(`(e.full_name LIKE ? OR l.employee_id LIKE ? OR l.transaction_desc LIKE ?)`);
+            const searchTerm = `%${search}%`;
+            params.push(searchTerm, searchTerm, searchTerm);
+        }
+
+        if (startDate) {
+            conditions.push(`l.action_date >= ?`);
+            params.push(startDate);
+        }
+
+        if (endDate) {
+            conditions.push(`l.action_date <= ?`);
+            params.push(`${endDate} 23:59:59`);
+        }
+
+        const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+        // Get total count
+        const countQuery = `
+            SELECT COUNT(*) as total 
+            FROM ledger l
+            JOIN employees e ON l.employee_id = e.id
+            ${whereClause}
+        `;
+        const [countRows] = await db.execute(countQuery, params);
+        const total = countRows[0].total;
+
+        // Get paginated data
+        const query = `
             SELECT l.*, e.full_name 
             FROM ledger l 
             JOIN employees e ON l.employee_id = e.id 
-            ORDER BY action_date DESC LIMIT 100
+            ${whereClause}
+            ORDER BY l.action_date DESC, l.id DESC
+            LIMIT ${limit} OFFSET ${offset}
         `;
-        let params = [];
-        if (employee_id) {
-            query = `
-                SELECT l.*, e.full_name 
-                FROM ledger l 
-                JOIN employees e ON l.employee_id = e.id 
-                WHERE l.employee_id = ?
-                ORDER BY action_date DESC
-            `;
-            params = [employee_id];
-        }
         const [rows] = await db.execute(query, params);
-        res.json(rows);
+
+        res.json({
+            data: rows,
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit)
+        });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Ledger History Error:', error);
+        res.status(500).json({ error: 'Failed to fetch ledger history' });
     }
 });
 
@@ -604,7 +907,7 @@ app.get('/api/employees/:id/leave-card/:year', async (req, res) => {
     try {
         // 1. Get Employee Info with live balances
         const [empRows] = await db.execute(`
-            SELECT e.*, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.bbw_vl, b.bbw_sl
+            SELECT e.*, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.maternity_leave, b.paternity_leave, b.special_benefits_for_women, b.bbw_vl, b.bbw_sl
             FROM employees e
             JOIN leave_balances b ON e.id = b.employee_id
             WHERE e.id = ?
@@ -681,8 +984,8 @@ app.get('/api/employees/:id/leave-card/:year', async (req, res) => {
             
             // Check if it's a privilege leave using the reliable leave_type column
             // Fallback to string matching for older records
-            const isPrivilege = ['Special Leave', 'Force Leave', 'Wellness Leave', 'Solo Parent Leave'].includes(leaveType) ||
-                                (leaveType === '' && (desc.includes('special leave') || desc.includes('force leave') || desc.includes('wellness') || desc.includes('solo parent')));
+            const isPrivilege = [LEAVE_TYPES.SPECIAL, LEAVE_TYPES.FORCE, LEAVE_TYPES.WELLNESS, LEAVE_TYPES.SOLO_PARENT, LEAVE_TYPES.MATERNITY, LEAVE_TYPES.PATERNITY, LEAVE_TYPES.SBW].includes(leaveType) ||
+                                (leaveType === '' && (desc.includes('special leave') || desc.includes('force leave') || desc.includes('paternity') || desc.includes('wellness') || desc.includes('solo parent') || desc.includes('maternity') || desc.includes('special benefits for women') || desc.includes('special benefits for woman')));
 
             return !isSystem && !isPrivilege;
         });
@@ -692,8 +995,8 @@ app.get('/api/employees/:id/leave-card/:year', async (req, res) => {
             const leaveType = entry.leave_type || '';
             const desc = (entry.transaction_desc || '').toLowerCase();
             
-            return ['Special Leave', 'Force Leave', 'Wellness Leave', 'Solo Parent Leave'].includes(leaveType) ||
-                   (leaveType === '' && (desc.includes('special leave') || desc.includes('force leave') || desc.includes('wellness') || desc.includes('solo parent')));
+            return [LEAVE_TYPES.SPECIAL, LEAVE_TYPES.FORCE, LEAVE_TYPES.WELLNESS, LEAVE_TYPES.SOLO_PARENT, LEAVE_TYPES.MATERNITY, LEAVE_TYPES.PATERNITY, LEAVE_TYPES.SBW].includes(leaveType) ||
+                   (leaveType === '' && (desc.includes('special leave') || desc.includes('force leave') || desc.includes('paternity') || desc.includes('wellness') || desc.includes('solo parent') || desc.includes('maternity') || desc.includes('special benefits for women') || desc.includes('special benefits for woman')));
         });
 
         let runningBalance = { vl: parseFloat(startingBalance.vl), sl: parseFloat(startingBalance.sl) };
@@ -733,8 +1036,8 @@ app.get('/api/employees/:id/leave-card/:year', async (req, res) => {
                 row.period_text = `AS OF ${month}`;
                 row.particulars = 'Monthly Credit';
 
-            } else if (entry.transaction_type === 'LEAVE') {
-                // Leave Deduction: Subtract from the CORRECT leave type only
+            } else if (entry.transaction_type === 'LEAVE' || entry.transaction_type === 'TARDY') {
+                // Leave Deduction OR Tardy Deduction: always deducts from VL when leave_type = 'VL'
                 const deductWPay = parseFloat(entry.deducted_with_pay || 0);
                 const deductWOPay = parseFloat(entry.deducted_without_pay || 0);
                 const totalDays = deductWPay + deductWOPay;
@@ -754,7 +1057,12 @@ app.get('/api/employees/:id/leave-card/:year', async (req, res) => {
                 if (runningBalance.sl < 0) runningBalance.sl = 0;
 
                 row.period_text = entry.period_text || `${month} ${day}`;
-                row.particulars = `${entry.leave_type} - ${parseFloat(totalDays.toFixed(3))}`;
+                // Tardy gets a distinct label; regular leave keeps the existing format
+                if (entry.transaction_type === 'TARDY') {
+                    row.particulars = `TARDY - ${parseFloat(deductWPay.toFixed(3))} Deducted`;
+                } else {
+                    row.particulars = `${entry.leave_type} - ${parseFloat(totalDays.toFixed(3))}`;
+                }
 
             } else if (entry.transaction_type === 'UNDO') {
                 // UNDO: Restore the deducted days back to the correct leave type
@@ -813,13 +1121,15 @@ app.get('/api/employees/:id/leave-card/:year', async (req, res) => {
                     { key: 'sp_bal', desc: 'special' },
                     { key: 'fl_bal', desc: 'force' },
                     { key: 'wl_bal', desc: 'wellness' },
-                    { key: 'spl_bal', desc: 'solo' }
+                    { key: 'spl_bal', desc: 'solo' },
+                    { key: 'mat_bal', desc: 'maternity' },
+                    { key: 'pat_bal', desc: 'paternity' }
                 ];
                 
                 for (const t of types) {
                     if (entry.transaction_desc.toLowerCase().includes(t.desc)) {
-                        // For the first entry, we compare against the default allocation (3, 5, 5, 7)
-                        const defaultCaps = { 'sp_bal': 3, 'fl_bal': 5, 'wl_bal': 5, 'spl_bal': 7 };
+                        // For the first entry, we compare against the default allocation
+                        const defaultCaps = { 'sp_bal': 3, 'fl_bal': 5, 'wl_bal': 5, 'spl_bal': 7, 'mat_bal': 105, 'pat_bal': 7 };
                         const prevBal = idx > 0 ? parseFloat(privilegeEntries[idx - 1][t.key]) : defaultCaps[t.key];
                         const diff = prevBal - parseFloat(entry[t.key]);
                         if (diff !== 0) amount = diff;
@@ -839,14 +1149,305 @@ app.get('/api/employees/:id/leave-card/:year', async (req, res) => {
             };
         });
 
+        // --- TIME-TRAVEL PRIVILEGE SUMMARY LOGIC ---
+        // Perfect Sync: Use the snapshot from the last ACTUAL activity entry.
+        // We filter out "Initialization/Rollover" rows because they reset the 
+        // balance snapshots to 5.000, which hides the historical usage.
+        let closingPrivileges = null;
+        
+        const actualActivityRows = ledgerRows.filter(r => 
+            !r.transaction_desc.includes('Yearly Initialization') && 
+            !r.transaction_desc.includes('Yearly Rollover')
+        );
+
+        const lastEntry = actualActivityRows[actualActivityRows.length - 1] || ledgerRows[ledgerRows.length - 1];
+        
+        if (lastEntry) {
+            closingPrivileges = {
+                special_leave: lastEntry.sp_bal,
+                force_leave: lastEntry.fl_bal,
+                wellness_leave: lastEntry.wl_bal,
+                solo_parent_leave: lastEntry.spl_bal,
+                maternity_leave: lastEntry.mat_bal,
+                paternity_leave: lastEntry.pat_bal,
+                special_benefits_for_women: lastEntry.sbw_bal
+            };
+        }
+
         res.json({
             employee: empRows[0],
             startingBalance,
             rows: [headerRow, ...vlSlRows],
-            privilegeRows: privilegeRows
+            privilegeRows: privilegeRows,
+            closingPrivileges: closingPrivileges // Pass the snapshot
         });
     } catch (error) {
         res.status(500).json({ error: error.message });
+    }
+});
+
+// ============================================================
+// TARDY DEDUCTION ROUTES (New - Core logic untouched)
+// ============================================================
+
+// GET all tardy deductions (for Processed Applications tab)
+app.get('/api/tardy', async (req, res) => {
+    try {
+        const [rows] = await db.execute(`
+            SELECT t.*, e.full_name,
+                   (SELECT COUNT(*) FROM accrual_logs a WHERE (a.year > YEAR(t.deduction_date)) OR (a.year = YEAR(t.deduction_date) AND a.month >= MONTH(t.deduction_date))) > 0 AS is_closed
+            FROM tardy_deductions t
+            JOIN employees e ON t.employee_id = e.id
+            ORDER BY t.deduction_date DESC
+        `);
+        res.json(rows);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// POST: Deduct equivalent day from VL
+app.post('/api/tardy/deduct', async (req, res) => {
+    const { employee_id, equivalent_day, period_text, remarks } = req.body;
+    const connection = await db.getConnection();
+    try {
+        await connection.beginTransaction();
+
+        // 1. Validate employee balance
+        const [balRows] = await connection.execute(
+            'SELECT * FROM leave_balances WHERE employee_id = ? FOR UPDATE',
+            [employee_id]
+        );
+        if (balRows.length === 0) throw new Error('Employee balance not found');
+        const bal = balRows[0];
+        const currentVL = parseFloat(bal.vacation_leave || 0);
+        const days = parseFloat(equivalent_day);
+
+        if (days <= 0) throw new Error('Equivalent day must be greater than 0');
+
+        // 2. Split pay math (same pattern as leave approve)
+        const with_pay = Math.min(days, currentVL);
+        const without_pay = Math.max(0, days - currentVL);
+
+        // 3. Deduct from VL only
+        await connection.execute(
+            'UPDATE leave_balances SET vacation_leave = vacation_leave - ? WHERE employee_id = ?',
+            [with_pay, employee_id]
+        );
+
+        // 4. Save tardy record
+        const [result] = await connection.execute(
+            'INSERT INTO tardy_deductions (employee_id, equivalent_day, period_text, remarks, status) VALUES (?, ?, ?, ?, ?)',
+            [employee_id, days, period_text, remarks || null, 'Deducted']
+        );
+
+        // 5. Write ledger snapshot
+        const [newBal] = await connection.execute(
+            'SELECT * FROM leave_balances WHERE employee_id = ?',
+            [employee_id]
+        );
+        const b = newBal[0];
+        const desc = `Tardy Deduction: ${days} days deducted from VL. Period: ${period_text}.`;
+
+        await connection.execute(
+            'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, mat_bal, pat_bal, sbw_bal, transaction_type, leave_type, deducted_with_pay, deducted_without_pay, remarks, period_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [employee_id, desc, b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.maternity_leave, b.paternity_leave, b.special_benefits_for_women, 'TARDY', 'VL', with_pay, without_pay, remarks || null, period_text]
+        );
+
+        await connection.commit();
+        res.json({ success: true, message: `Deducted ${days} days from VL successfully.` });
+    } catch (error) {
+        await connection.rollback();
+        res.status(500).json({ error: error.message });
+    } finally {
+        connection.release();
+    }
+});
+
+// POST: Undo a tardy deduction
+app.post('/api/tardy/undo', async (req, res) => {
+    const { tardy_id } = req.body;
+    const connection = await db.getConnection();
+    try {
+        await connection.beginTransaction();
+
+        // 1. Get the tardy record
+        const [rows] = await connection.execute('SELECT * FROM tardy_deductions WHERE id = ?', [tardy_id]);
+        if (rows.length === 0) throw new Error('Tardy record not found');
+        const tardy = rows[0];
+        if (tardy.status !== 'Deducted') throw new Error('Only active deductions can be undone');
+
+        // Check if the tardy record belongs to a closed month
+        const tardyDate = new Date(tardy.deduction_date);
+        const tardyMonth = tardyDate.getMonth() + 1;
+        const tardyYear = tardyDate.getFullYear();
+
+        const [accrualLogs] = await connection.execute(
+            'SELECT * FROM accrual_logs WHERE (year > ?) OR (year = ? AND month >= ?)',
+            [tardyYear, tardyYear, tardyMonth]
+        );
+
+        if (accrualLogs.length > 0) {
+            throw new Error(`Undo Locked: This tardiness record belongs to a closed month (${tardyMonth}/${tardyYear}). To correct credits, please perform a Manual Balance Adjustment.`);
+        }
+
+        const days = parseFloat(tardy.equivalent_day);
+
+        // 2. Restore VL
+        await connection.execute(
+            'UPDATE leave_balances SET vacation_leave = vacation_leave + ? WHERE employee_id = ?',
+            [days, tardy.employee_id]
+        );
+
+        // 3. Update tardy status
+        await connection.execute(
+            'UPDATE tardy_deductions SET status = ? WHERE id = ?',
+            ['Undone', tardy_id]
+        );
+
+        // 4. Write ledger snapshot
+        const [newBal] = await connection.execute(
+            'SELECT * FROM leave_balances WHERE employee_id = ?',
+            [tardy.employee_id]
+        );
+        const b = newBal[0];
+        const desc = `UNDO TARDY: Restored ${days} days to VL. Period: ${tardy.period_text}.`;
+
+        await connection.execute(
+            'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, mat_bal, pat_bal, sbw_bal, transaction_type, leave_type, deducted_with_pay, remarks, period_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [tardy.employee_id, desc, b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.maternity_leave, b.paternity_leave, b.special_benefits_for_women, 'UNDO', 'VL', days, tardy.remarks || null, tardy.period_text]
+        );
+
+        await connection.commit();
+        res.json({ success: true, message: 'Tardy deduction undone successfully.' });
+    } catch (error) {
+        await connection.rollback();
+        res.status(500).json({ error: error.message });
+    } finally {
+        connection.release();
+    }
+});
+
+// POST: Redo a tardy deduction
+app.post('/api/tardy/redo', async (req, res) => {
+    const { tardy_id } = req.body;
+    const connection = await db.getConnection();
+    try {
+        await connection.beginTransaction();
+
+        // 1. Get the tardy record
+        const [rows] = await connection.execute('SELECT * FROM tardy_deductions WHERE id = ?', [tardy_id]);
+        if (rows.length === 0) throw new Error('Tardy record not found');
+        const tardy = rows[0];
+        if (tardy.status !== 'Undone') throw new Error('Only undone deductions can be redone');
+
+        // Check if the tardy record belongs to a closed month
+        const tardyDate = new Date(tardy.deduction_date);
+        const tardyMonth = tardyDate.getMonth() + 1;
+        const tardyYear = tardyDate.getFullYear();
+
+        const [accrualLogs] = await connection.execute(
+            'SELECT * FROM accrual_logs WHERE (year > ?) OR (year = ? AND month >= ?)',
+            [tardyYear, tardyYear, tardyMonth]
+        );
+
+        if (accrualLogs.length > 0) {
+            throw new Error(`Redo Locked: This tardiness record belongs to a closed month (${tardyMonth}/${tardyYear}). To correct credits, please perform a Manual Balance Adjustment.`);
+        }
+
+        const days = parseFloat(tardy.equivalent_day);
+
+        // 2. Validate current balance
+        const [balRows] = await connection.execute(
+            'SELECT * FROM leave_balances WHERE employee_id = ? FOR UPDATE',
+            [tardy.employee_id]
+        );
+        const bal = balRows[0];
+        const currentVL = parseFloat(bal.vacation_leave || 0);
+        const with_pay = Math.min(days, currentVL);
+        const without_pay = Math.max(0, days - currentVL);
+
+        // 3. Re-deduct from VL
+        await connection.execute(
+            'UPDATE leave_balances SET vacation_leave = vacation_leave - ? WHERE employee_id = ?',
+            [with_pay, tardy.employee_id]
+        );
+
+        // 4. Update tardy status back to Deducted
+        await connection.execute(
+            'UPDATE tardy_deductions SET status = ? WHERE id = ?',
+            ['Deducted', tardy_id]
+        );
+
+        // 5. Write ledger snapshot
+        const [newBal] = await connection.execute(
+            'SELECT * FROM leave_balances WHERE employee_id = ?',
+            [tardy.employee_id]
+        );
+        const b = newBal[0];
+        const desc = `REDO TARDY: Re-deducted ${days} days from VL. Period: ${tardy.period_text}.`;
+
+        await connection.execute(
+            'INSERT INTO ledger (employee_id, transaction_desc, vl_bal, sl_bal, sp_bal, fl_bal, wl_bal, spl_bal, mat_bal, pat_bal, sbw_bal, transaction_type, leave_type, deducted_with_pay, deducted_without_pay, remarks, period_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [tardy.employee_id, desc, b.vacation_leave, b.sick_leave, b.special_leave, b.force_leave, b.wellness_leave, b.solo_parent_leave, b.maternity_leave, b.paternity_leave, b.special_benefits_for_women, 'TARDY', 'VL', with_pay, without_pay, tardy.remarks || null, tardy.period_text]
+        );
+
+        await connection.commit();
+        res.json({ success: true, message: 'Tardy deduction re-applied successfully.' });
+    } catch (error) {
+        await connection.rollback();
+        res.status(500).json({ error: error.message });
+    } finally {
+        connection.release();
+    }
+});
+
+// ============================================================
+// CONNECTION TEST ROUTE
+// ============================================================
+app.get('/api/ping', async (req, res) => {
+    try {
+        await db.execute('SELECT 1');
+        res.json({ success: true, message: 'Database connected successfully.' });
+    } catch (error) {
+        let message = 'Unknown database error.';
+        if (error.code === 'ECONNREFUSED') {
+            message = 'MySQL is not running. Please start WAMP or XAMPP first.';
+        } else if (error.code === 'ER_ACCESS_DENIED_ERROR') {
+            message = 'Access denied. Check DB_USER and DB_PASSWORD in your .env file.';
+        } else if (error.code === 'ER_BAD_DB_ERROR') {
+            message = 'Database not found on this server. Check DB_NAME and DB_PORT in your .env file. You may be connecting to the wrong MySQL instance.';
+        } else if (error.code === 'ETIMEDOUT' || error.code === 'ENOTFOUND') {
+            message = 'Connection timed out. Check DB_HOST and DB_PORT in your .env file.';
+        } else {
+            message = error.message;
+        }
+        res.status(500).json({ success: false, message });
+    }
+});
+
+// 7. System Utilities
+app.get('/api/system/backup', async (req, res) => {
+    try {
+        const dump = await mysqldump({
+            connection: {
+                host: process.env.DB_HOST || 'localhost',
+                user: process.env.DB_USER || 'root',
+                password: process.env.DB_PASSWORD === undefined ? 'admin' : process.env.DB_PASSWORD,
+                database: process.env.DB_NAME || 'elrms_v2',
+                port: parseInt(process.env.DB_PORT) || 3306
+            },
+        });
+        
+        // Combine schema and data for a full backup
+        const fullDump = dump.dump.schema + '\n\n' + dump.dump.data;
+        
+        res.setHeader('Content-Type', 'application/sql');
+        res.setHeader('Content-Disposition', `attachment; filename="elrms_backup_${new Date().toISOString().split('T')[0]}.sql"`);
+        res.send(fullDump);
+    } catch (error) {
+        console.error('Backup Error:', error);
+        res.status(500).json({ error: 'Database backup failed: ' + error.message });
     }
 });
 

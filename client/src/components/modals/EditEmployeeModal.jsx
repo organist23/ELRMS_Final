@@ -7,6 +7,7 @@ const EditEmployeeModal = ({ employee, onClose, onSuccess }) => {
   const { showToast } = useNotification();
   const [formData, setFormData] = useState({
     full_name: employee.full_name,
+    sex: employee.sex || 'Male',
     civil_status: employee.civil_status || 'SINGLE',
     gsis_policy: employee.gsis_policy || '',
     position: employee.position,
@@ -48,6 +49,13 @@ const EditEmployeeModal = ({ employee, onClose, onSuccess }) => {
               <input type="text" className="input-field" required value={formData.full_name} onChange={e => setFormData({...formData, full_name: e.target.value})} />
             </div>
             <div className="form-group">
+              <label className="label">Sex</label>
+              <select className="input-field" disabled required value={formData.sex} onChange={e => setFormData({...formData, sex: e.target.value})}>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+              </select>
+            </div>
+            <div className="form-group">
               <label className="label">Position</label>
               <input type="text" className="input-field" required value={formData.position} onChange={e => setFormData({...formData, position: e.target.value})} />
             </div>
@@ -72,8 +80,10 @@ const EditEmployeeModal = ({ employee, onClose, onSuccess }) => {
               <label className="label">Status</label>
               <select className="input-field" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}>
                 <option value="PERMANENT">PERMANENT</option>
+                <option value="ELECTIVE">ELECTIVE</option>
                 <option value="CASUAL">CASUAL</option>
                 <option value="CONTRACTUAL">CONTRACTUAL</option>
+                <option value="CO TERMINUS">CO TERMINUS</option>
               </select>
             </div>
             <div className="form-group">
@@ -104,33 +114,71 @@ const EditEmployeeModal = ({ employee, onClose, onSuccess }) => {
                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '24px' }}>
                   <div className="form-group">
                     <label className="label">Vacation Leave (VL)</label>
-                    <input type="number" step="0.001" className="input-field" value={formData.vacation_leave} onChange={e => setFormData({...formData, vacation_leave: e.target.value})} />
+                    <input 
+                      type="text" 
+                      className="input-field" 
+                      value={formData.vacation_leave} 
+                      onChange={e => {
+                        const val = e.target.value.replace(/[^0-9.]/g, '');
+                        const parts = val.split('.');
+                        const filtered = parts[0] + (parts.length > 1 ? '.' + parts.slice(1).join('') : '');
+                        setFormData({...formData, vacation_leave: filtered});
+                      }} 
+                    />
                   </div>
                   <div className="form-group">
                     <label className="label">Sick Leave (SL)</label>
-                    <input type="number" step="0.001" className="input-field" value={formData.sick_leave} onChange={e => setFormData({...formData, sick_leave: e.target.value})} />
+                    <input 
+                      type="text" 
+                      className="input-field" 
+                      value={formData.sick_leave} 
+                      onChange={e => {
+                        const val = e.target.value.replace(/[^0-9.]/g, '');
+                        const parts = val.split('.');
+                        const filtered = parts[0] + (parts.length > 1 ? '.' + parts.slice(1).join('') : '');
+                        setFormData({...formData, sick_leave: filtered});
+                      }} 
+                    />
                   </div>
                </div>
                
                {/* Read Only Privilege Credits */}
                <h4 className="font-bold mb-12 text-muted" style={{ fontSize: '0.75rem', textTransform: 'uppercase', opacity: 0.8 }}>View-Only: Privilege Credits (Annual Limits)</h4>
-               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '12px' }}>
                   <div style={{ background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
                     <div className="label mb-4" style={{ fontSize: '0.6rem' }}>SPECIAL</div>
-                    <div className="font-bold">{Number(employee.special_leave)}</div>
+                    <div className="font-bold">{Number(employee.special_leave)} / 3</div>
                   </div>
                   <div style={{ background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
                     <div className="label mb-4" style={{ fontSize: '0.6rem' }}>FORCE</div>
-                    <div className="font-bold">{Number(employee.force_leave)}</div>
+                    <div className="font-bold">{Number(employee.force_leave)} / 5</div>
                   </div>
                   <div style={{ background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
                     <div className="label mb-4" style={{ fontSize: '0.6rem' }}>WELLNESS</div>
-                    <div className="font-bold">{Number(employee.wellness_leave)}</div>
+                    <div className="font-bold">{Number(employee.wellness_leave)} / 5</div>
                   </div>
                   <div style={{ background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                    <div className="label mb-4" style={{ fontSize: '0.6rem' }}>SOLO</div>
-                    <div className="font-bold">{Number(employee.solo_parent_leave)}</div>
+                    <div className="label mb-4" style={{ fontSize: '0.6rem' }}>SOLO PARENT</div>
+                    <div className="font-bold">{Number(employee.solo_parent_leave)} / 7</div>
                   </div>
+                  {employee.sex === 'Female' && (
+                    <div style={{ background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                      <div className="label mb-4" style={{ fontSize: '0.6rem' }}>MATERNITY</div>
+                      <div className="font-bold">{Number(employee.maternity_leave)} / 105</div>
+                    </div>
+                  )}
+                  {employee.sex === 'Male' && (
+                    <div style={{ background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                      <div className="label mb-4" style={{ fontSize: '0.6rem' }}>PATERNITY</div>
+                      <div className="font-bold">{Number(employee.paternity_leave || 0)} / 7</div>
+                    </div>
+                  )}
+                  {employee.sex === 'Female' && (
+                    <div style={{ background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                      <div className="label mb-4" style={{ fontSize: '0.6rem' }}>SP. BENEFITS (WOMEN)</div>
+                      <div className="font-bold">{Number(employee.special_benefits_for_women || 0)} / 30</div>
+                    </div>
+                  )}
                </div>
             </div>
           </div>

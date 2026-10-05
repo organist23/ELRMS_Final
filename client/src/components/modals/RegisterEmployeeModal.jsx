@@ -8,6 +8,7 @@ const RegisterEmployeeModal = ({ onClose, onSuccess }) => {
   const initialFormState = {
     id: '',
     full_name: '',
+    sex: 'Male',
     civil_status: 'SINGLE',
     gsis_policy: '',
     position: '',
@@ -42,7 +43,7 @@ const RegisterEmployeeModal = ({ onClose, onSuccess }) => {
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
+          <div className="modal-form-grid">
             <div className="form-group">
               <label>Employee ID (EID)</label>
               <input type="text" className="input-field" placeholder="EMP-2026-001" required value={formData.id} onChange={e => setFormData({ ...formData, id: e.target.value })} />
@@ -50,6 +51,13 @@ const RegisterEmployeeModal = ({ onClose, onSuccess }) => {
             <div className="form-group">
               <label className="label">Full Name</label>
               <input type="text" className="input-field" placeholder="LASTNAME, FIRSTNAME M." required value={formData.full_name} onChange={e => setFormData({ ...formData, full_name: e.target.value })} />
+            </div>
+            <div className="form-group">
+              <label className="label">Sex</label>
+              <select className="input-field" required value={formData.sex} onChange={e => setFormData({ ...formData, sex: e.target.value })}>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+              </select>
             </div>
             <div className="form-group">
               <label className="label">Position</label>
@@ -74,48 +82,67 @@ const RegisterEmployeeModal = ({ onClose, onSuccess }) => {
             </div>
             <div className="form-group">
               <label className="label">GSIS Policy No.</label>
-              <input 
-                type="text" 
-                className="input-field" 
-                placeholder="2001556677" 
-                value={formData.gsis_policy} 
-                onChange={e => setFormData({ ...formData, gsis_policy: e.target.value.replace(/[^0-9]/g, '') })} 
+              <input
+                type="text"
+                className="input-field"
+                placeholder="2001556677"
+                value={formData.gsis_policy}
+                onChange={e => setFormData({ ...formData, gsis_policy: e.target.value.replace(/[^0-9]/g, '') })}
               />
             </div>
             <div className="form-group">
               <label className="label">TIN</label>
-              <input 
-                type="text" 
-                className="input-field" 
-                placeholder="123-456-789" 
-                value={formData.tin} 
-                onChange={e => setFormData({ ...formData, tin: e.target.value.replace(/[^0-9-]/g, '') })} 
+              <input
+                type="text"
+                className="input-field"
+                placeholder="123-456-789"
+                value={formData.tin}
+                onChange={e => setFormData({ ...formData, tin: e.target.value.replace(/[^0-9-]/g, '') })}
               />
             </div>
             <div className="form-group">
               <label className="label">Status</label>
               <select className="input-field" value={formData.status} onChange={e => setFormData({ ...formData, status: e.target.value })}>
                 <option value="PERMANENT">PERMANENT</option>
-                <option value="SUBSTITUTE">SUBSTITUTE</option>
                 <option value="ELECTIVE">ELECTIVE</option>
-                <option value="SB">SB</option>
-                <option value="MAYOR">MAYOR</option>
-                <option value="VICE MAYOR">VICE MAYOR</option>
                 <option value="CASUAL">CASUAL</option>
                 <option value="CO TERMINUS">CO TERMINUS</option>
               </select>
             </div>
 
-            <div style={{ gridColumn: 'span 3', background: 'var(--accent-light)', padding: '24px', borderRadius: 'var(--radius)', marginTop: '8px', border: '1px solid var(--accent)' }}>
+            <div className="form-accrual-section">
               <h4 className="font-bold mb-16" style={{ color: 'var(--accent)', textTransform: 'uppercase', fontSize: '0.8rem', letterSpacing: '0.05em' }}>Initial Balances (Brought Forward)</h4>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+              <div className="modal-form-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
                 <div className="form-group">
                   <label className="label">Initial Vacation Leave (VL) <span style={{ color: 'var(--accent)' }}>*</span></label>
-                  <input type="number" step="0.001" className="input-field" required value={formData.initial_vl} onChange={e => setFormData({ ...formData, initial_vl: e.target.value })} />
+                  <input 
+                    type="text" 
+                    className="input-field" 
+                    required 
+                    value={formData.initial_vl} 
+                    onChange={e => {
+                      const val = e.target.value.replace(/[^0-9.]/g, '');
+                      // Allow only one dot
+                      const parts = val.split('.');
+                      const filtered = parts[0] + (parts.length > 1 ? '.' + parts.slice(1).join('') : '');
+                      setFormData({ ...formData, initial_vl: filtered });
+                    }} 
+                  />
                 </div>
                 <div className="form-group">
                   <label className="label">Initial Sick Leave (SL) <span style={{ color: 'var(--accent)' }}>*</span></label>
-                  <input type="number" step="0.001" className="input-field" required value={formData.initial_sl} onChange={e => setFormData({ ...formData, initial_sl: e.target.value })} />
+                  <input 
+                    type="text" 
+                    className="input-field" 
+                    required 
+                    value={formData.initial_sl} 
+                    onChange={e => {
+                      const val = e.target.value.replace(/[^0-9.]/g, '');
+                      const parts = val.split('.');
+                      const filtered = parts[0] + (parts.length > 1 ? '.' + parts.slice(1).join('') : '');
+                      setFormData({ ...formData, initial_sl: filtered });
+                    }} 
+                  />
                 </div>
               </div>
             </div>
