@@ -16,8 +16,8 @@ const LedgerSummary = () => {
   useEffect(() => {
     const fetchEmployees = async () => {
       try {
-        // Fetch a large number for the searchable dropdown
-        const { data: res } = await api.get('/employees?limit=1000');
+        // Fetch all employees (active + inactive) so archived records are searchable
+        const { data: res } = await api.get('/employees?limit=1000&include_inactive=true');
         setEmployees(res.data || []);
       } catch (err) {
         console.error('Error fetching employees', err);
@@ -143,13 +143,30 @@ const LedgerSummary = () => {
                     <div 
                       key={emp.id} 
                       className="search-result-item"
+                      style={{ opacity: emp.is_active === 0 ? 0.65 : 1 }}
                       onClick={() => {
                         setSelectedEmpId(emp.id);
                         setEmpSearch(`${emp.full_name} (${emp.id})`);
                         setShowDropdown(false);
                       }}
                     >
-                      <div className="font-bold" style={{ fontSize: '0.9rem' }}>{emp.full_name}</div>
+                      <div className="flex items-center gap-8">
+                        <span className="font-bold" style={{ fontSize: '0.9rem' }}>{emp.full_name}</span>
+                        {emp.is_active === 0 && (
+                          <span style={{
+                            fontSize: '0.65rem',
+                            fontWeight: 700,
+                            background: '#fef2f2',
+                            color: '#dc2626',
+                            border: '1px solid #fecaca',
+                            borderRadius: '4px',
+                            padding: '1px 6px',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.05em',
+                            flexShrink: 0
+                          }}>Archived</span>
+                        )}
+                      </div>
                       <div className="text-small text-muted">{emp.id} • {emp.office}</div>
                     </div>
                   ))
@@ -219,7 +236,9 @@ const LedgerSummary = () => {
              </div>
              <div className="strip-item">
                 <span className="label">Status</span>
-                <span className="value">{selectedEmployee?.status}</span>
+                <span className="value" style={{ color: selectedEmployee?.is_active === 0 ? '#dc2626' : undefined }}>
+                  {selectedEmployee?.is_active === 0 ? 'Archived' : selectedEmployee?.status}
+                </span>
              </div>
           </div>
 

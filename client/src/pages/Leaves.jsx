@@ -11,6 +11,7 @@ const Leaves = () => {
   const [historyLeaves, setHistoryLeaves] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [processing, setProcessing] = useState(false);
   
   // History Pagination
@@ -23,7 +24,7 @@ const Leaves = () => {
   const [tardyPage, setTardyPage] = useState(1);
   const tardyLimit = 10;
 
-  const fetchData = async () => {
+  const fetchPendingAndTardy = async () => {
     setLoading(true);
     try {
       // Fetch Pending
@@ -39,16 +40,6 @@ const Leaves = () => {
         return { data: [] };
       });
       setTardyRecords(tardyRes.data);
-
-      // Fetch History
-      const historyRes = await api.get(`/leaves/history?page=${historyPage}`).catch(err => {
-        console.error('History fetch failed', err);
-        return { data: { data: [], totalPages: 1, total: 0 } };
-      });
-      setHistoryLeaves(historyRes.data.data || []);
-      setTotalHistoryPages(historyRes.data.totalPages || 1);
-      setTotalHistoryRecords(historyRes.data.total || 0);
-
     } catch (err) {
       console.error('Critical fetch error', err);
     } finally {
@@ -56,11 +47,35 @@ const Leaves = () => {
     }
   };
 
+  const fetchHistory = async () => {
+    try {
+      const historyRes = await api.get(`/leaves/history?page=${historyPage}&search=${debouncedSearch}`).catch(err => {
+        console.error('History fetch failed', err);
+        return { data: { data: [], totalPages: 1, total: 0 } };
+      });
+      setHistoryLeaves(historyRes.data.data || []);
+      setTotalHistoryPages(historyRes.data.totalPages || 1);
+      setTotalHistoryRecords(historyRes.data.total || 0);
+    } catch (err) {
+      console.error('History fetch error', err);
+    }
+  };
+
   useEffect(() => {
-    fetchData();
-  // location.pathname ensures fresh is_closed values are fetched every time
-  // the user navigates back to this page from another page (e.g. after generating credits)
-  }, [historyPage, location.pathname]);
+    fetchPendingAndTardy();
+  }, [location.pathname]);
+
+  useEffect(() => {
+    fetchHistory();
+  }, [historyPage, debouncedSearch, location.pathname]);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search);
+      setHistoryPage(1); // reset to page 1 on new search
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [search]);
 
   useEffect(() => {
     setTardyPage(1);
@@ -85,7 +100,8 @@ const Leaves = () => {
       setProcessing(true);
       await api.post(`/leaves/${action}`, { application_id: id });
       showToast(`${action.charAt(0).toUpperCase() + action.slice(1)} completed successfully.`, 'success');
-      fetchData();
+      fetchPendingAndTardy();
+      fetchHistory();
     } catch (err) {
       showToast(err.response?.data?.error || `Failed to ${action}`, 'error');
     } finally {
@@ -106,7 +122,8 @@ const Leaves = () => {
       setProcessing(true);
       await api.post(`/tardy/${action}`, { tardy_id: tardyId });
       showToast(`${label} completed successfully.`, 'success');
-      fetchData();
+      fetchPendingAndTardy();
+      fetchHistory();
     } catch (err) {
       showToast(err.response?.data?.error || `Failed to ${action} tardy`, 'error');
     } finally {
@@ -119,10 +136,7 @@ const Leaves = () => {
     (l.employee_id || '').toLowerCase().includes(search.toLowerCase())
   );
 
-  const filteredHistory = historyLeaves.filter(l =>
-    (l.full_name || '').toLowerCase().includes(search.toLowerCase()) ||
-    (l.employee_id || '').toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredHistory = historyLeaves; // server-side filtered now
 
   const filteredTardy = tardyRecords.filter(t =>
     (t.full_name || '').toLowerCase().includes(search.toLowerCase()) ||
@@ -135,7 +149,8 @@ const Leaves = () => {
     tardyPage * tardyLimit
   );
 
-  if (loading) return <div style={{ padding: '48px', textAlign: 'center', color: 'var(--secondary)' }}>Loading Queue...</div>;
+  const isInitialLoad = loading && pendingLeaves.length === 0 && historyLeaves.length === 0 && tardyRecords.length === 0;
+  if (isInitialLoad) return <div style={{ padding: '48px', textAlign: 'center', color: 'var(--secondary)' }}>Loading Queue...</div>;
 
   return (
     <div className="fade-in">
@@ -164,7 +179,14 @@ const Leaves = () => {
           <span>Pending Requests</span>
         </h3>
         {filteredPending.length > 0 ? (
-          <div className="data-table-container">
+          <div 
+            className="data-table-container"
+            style={{ 
+              opacity: loading ? 0.7 : 1, 
+              transition: 'opacity 0.15s ease-in-out',
+              pointerEvents: loading ? 'none' : 'auto'
+            }}
+          >
             <table className="data-table">
               <thead>
                 <tr>
@@ -189,19 +211,37 @@ const Leaves = () => {
                       <div style={{ display: 'flex', gap: '8px' }}>
                         <button 
                           className="btn-primary" 
-                          style={{ padding: '8px 16px', background: 'var(--success)', fontSize: '0.8125rem', opacity: processing ? 0.5 : 1, cursor: processing ? 'not-allowed' : 'pointer' }} 
+                          style={{ 
+                            padding: '8px 16px', 
+                            fontSize: '0.8125rem', 
+                            background: leave.is_closed ? 'transparent' : 'var(--success)',
+                            opacity: (processing || leave.is_closed) ? 0.5 : 1, 
+                            cursor: (processing || leave.is_closed) ? 'not-allowed' : 'pointer',
+                            color: leave.is_closed ? '#94a3b8' : '',
+                            border: leave.is_closed ? '1px solid #cbd5e1' : ''
+                          }} 
                           onClick={() => handleAction(leave.id, 'approve', leave)}
-                          disabled={processing}
+                          disabled={processing || leave.is_closed}
+                          title={leave.is_closed ? "Cannot approve leaves from a closed month" : "Approve"}
                         >
-                          {processing ? '...' : 'Approve'}
+                          {leave.is_closed ? 'Approve Locked' : (processing ? '...' : 'Approve')}
                         </button>
                         <button 
                           className="btn-primary" 
-                          style={{ padding: '8px 16px', background: 'var(--danger)', fontSize: '0.8125rem', opacity: processing ? 0.5 : 1, cursor: processing ? 'not-allowed' : 'pointer' }} 
+                          style={{ 
+                            padding: '8px 16px', 
+                            fontSize: '0.8125rem',
+                            background: leave.is_closed ? 'transparent' : 'var(--danger)',
+                            opacity: (processing || leave.is_closed) ? 0.5 : 1, 
+                            cursor: (processing || leave.is_closed) ? 'not-allowed' : 'pointer',
+                            color: leave.is_closed ? '#94a3b8' : '',
+                            border: leave.is_closed ? '1px solid #cbd5e1' : ''
+                          }} 
                           onClick={() => handleAction(leave.id, 'reject', leave)}
-                          disabled={processing}
+                          disabled={processing || leave.is_closed}
+                          title={leave.is_closed ? "Cannot reject leaves from a closed month" : "Disapprove"}
                         >
-                          {processing ? '...' : 'Disapprove'}
+                          {leave.is_closed ? 'Reject Locked' : (processing ? '...' : 'Disapprove')}
                         </button>
                       </div>
                     </td>
@@ -224,7 +264,15 @@ const Leaves = () => {
         </h3>
         {filteredHistory.length > 0 ? (
           <>
-            <div className="data-table-container leaves-scroll-container">
+            <div 
+              className="data-table-container leaves-scroll-container"
+              style={{ 
+                opacity: loading ? 0.7 : 1, 
+                transition: 'opacity 0.15s ease-in-out',
+                pointerEvents: loading ? 'none' : 'auto',
+                minHeight: (totalHistoryPages > 1) ? '380px' : 'auto'
+              }}
+            >
               <table className="data-table">
                 <thead>
                   <tr>
@@ -346,7 +394,15 @@ const Leaves = () => {
         </h3>
         {filteredTardy.length > 0 ? (
           <>
-            <div className="data-table-container leaves-scroll-container">
+            <div 
+              className="data-table-container leaves-scroll-container"
+              style={{ 
+                opacity: loading ? 0.7 : 1, 
+                transition: 'opacity 0.15s ease-in-out',
+                pointerEvents: loading ? 'none' : 'auto',
+                minHeight: (totalTardyPages > 1 && !search.trim()) ? '380px' : 'auto'
+              }}
+            >
               <table className="data-table">
                 <thead>
                   <tr>
@@ -413,13 +469,21 @@ const Leaves = () => {
                           </button>
                         ) : (
                           <button
-                            className="btn-primary"
+                            className={tardy.is_closed ? "btn-danger-outline" : "btn-primary"}
                             onClick={() => handleTardyAction(tardy.id, 'redo')}
-                            disabled={processing}
-                            style={{ padding: '6px 14px', fontSize: '0.75rem', opacity: processing ? 0.5 : 1, cursor: processing ? 'not-allowed' : 'pointer' }}
+                            disabled={processing || tardy.is_closed}
+                            style={{ 
+                              padding: '6px 14px', 
+                              fontSize: '0.75rem', 
+                              opacity: (processing || tardy.is_closed) ? 0.5 : 1, 
+                              cursor: (processing || tardy.is_closed) ? 'not-allowed' : 'pointer',
+                              color: tardy.is_closed ? '#94a3b8' : '',
+                              border: tardy.is_closed ? '1px solid #cbd5e1' : ''
+                            }}
+                            title={tardy.is_closed ? "Cannot redo deductions from a closed month" : "Redo Deduction"}
                           >
                             <RotateCw size={14} />
-                            {processing ? '...' : 'Redo Deduction'}
+                            {tardy.is_closed ? 'Redo Locked' : (processing ? '...' : 'Redo Deduction')}
                           </button>
                         )}
                       </td>

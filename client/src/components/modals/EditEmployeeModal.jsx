@@ -50,7 +50,7 @@ const EditEmployeeModal = ({ employee, onClose, onSuccess }) => {
             </div>
             <div className="form-group">
               <label className="label">Sex</label>
-              <select className="input-field" required value={formData.sex} onChange={e => setFormData({...formData, sex: e.target.value})}>
+              <select className="input-field" disabled required value={formData.sex} onChange={e => setFormData({...formData, sex: e.target.value})}>
                 <option value="Male">Male</option>
                 <option value="Female">Female</option>
               </select>

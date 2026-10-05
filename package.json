@@ -6,7 +6,9 @@
   "scripts": {
     "start": "concurrently \"cd server && node index.js\" \"cd client && npm run dev\"",
     "dev": "concurrently \"cd server && npm run dev\" \"cd client && npm run dev\"",
-    "electron:dev": "concurrently \"cd client && npm run dev\" \"cd server && node index.js\" \"wait-on http://localhost:5173 && electron .\"",
+    "electron:dev": "concurrently \"cd client && npm run dev\" \"cd server && node index.js\" \"wait-on http://localhost:5173 http://localhost:5000/api/ping && electron .\"",
+    "electron:dev:built": "npm run client:build && electron .",
+    "electron:lite": "concurrently \"cd client && npm run dev\" \"wait-on http://localhost:5173 && electron .\"",
     "client:build": "cd client && npm run build",
     "electron:build": "npm run client:build && electron-builder",
     "install:all": "npm install && cd server && npm install && cd client && npm install"

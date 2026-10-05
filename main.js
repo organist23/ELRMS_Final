@@ -5,12 +5,15 @@ const fs = require('fs');
 // 1. Determine environment
 const isDev = !app.isPackaged;
 
-// 2. Start Backend Server
-try {
-    require('./server/index.js');
-    console.log('Backend server started successfully.');
-} catch (err) {
-    console.error('Failed to start backend server:', err);
+// 2. Start Backend Server (production / packaged only)
+// In dev mode the server is started separately by the electron:dev npm script.
+if (!isDev) {
+    try {
+        require('./server/index.js');
+        console.log('Backend server started successfully.');
+    } catch (err) {
+        console.error('Failed to start backend server:', err);
+    }
 }
 
 let mainWindow;

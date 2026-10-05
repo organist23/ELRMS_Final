@@ -85,9 +85,11 @@ app.get('/api/employees', async (req, res) => {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
         const search = req.query.search || '';
+        const includeInactive = req.query.include_inactive === 'true';
         const offset = (page - 1) * limit;
 
-        let whereClause = 'WHERE e.is_active = 1';
+        // By default only fetch active employees; pass include_inactive=true to fetch all
+        let whereClause = includeInactive ? 'WHERE 1=1' : 'WHERE e.is_active = 1';
         let params = [];
 
         if (search) {
@@ -246,7 +248,8 @@ app.delete('/api/employees/:id', async (req, res) => {
 app.get('/api/leaves/pending', async (req, res) => {
     try {
         const [rows] = await db.execute(`
-            SELECT l.*, e.full_name
+            SELECT l.*, e.full_name,
+                   (SELECT COUNT(*) FROM accrual_logs a WHERE (a.year > YEAR(l.applied_at)) OR (a.year = YEAR(l.applied_at) AND a.month >= MONTH(l.applied_at))) > 0 AS is_closed
             FROM leave_applications l
             JOIN employees e ON l.employee_id = e.id
             WHERE l.status = 'Pending Approval'
@@ -322,6 +325,18 @@ app.post('/api/leaves/approve', async (req, res) => {
         if (apps.length === 0) throw new Error('Application not found');
         const app_data = apps[0];
 
+        // Check if the leave application belongs to a closed month (accrual already generated)
+        const leaveDateApprove = new Date(app_data.applied_at);
+        const leaveMonthApprove = leaveDateApprove.getMonth() + 1;
+        const leaveYearApprove = leaveDateApprove.getFullYear();
+        const [accrualLogsApprove] = await connection.execute(
+            'SELECT * FROM accrual_logs WHERE (year > ?) OR (year = ? AND month >= ?)',
+            [leaveYearApprove, leaveYearApprove, leaveMonthApprove]
+        );
+        if (accrualLogsApprove.length > 0) {
+            throw new Error(`Approve Locked: This leave application belongs to a closed month (${leaveMonthApprove}/${leaveYearApprove}). To correct credits, please perform a Manual Balance Adjustment.`);
+        }
+
         const field_map = {
             'Vacation Leave': 'vacation_leave',
             'Sick Leave': 'sick_leave',
@@ -395,13 +410,13 @@ app.post('/api/leaves/undo', async (req, res) => {
         if (app_data.status !== 'Approved') throw new Error('Only approved applications can be undone');
 
         // Check if the leave application belongs to a closed month (accrual already generated)
-        const leaveDate = app_data.date_to ? new Date(app_data.date_to) : new Date(app_data.applied_at);
+        const leaveDate = new Date(app_data.applied_at);
         const leaveMonth = leaveDate.getMonth() + 1;
         const leaveYear = leaveDate.getFullYear();
 
         const [accrualLogs] = await connection.execute(
-            'SELECT * FROM accrual_logs WHERE month = ? AND year = ?',
-            [leaveMonth, leaveYear]
+            'SELECT * FROM accrual_logs WHERE (year > ?) OR (year = ? AND month >= ?)',
+            [leaveYear, leaveYear, leaveMonth]
         );
 
         if (accrualLogs.length > 0) {
@@ -460,6 +475,18 @@ app.post('/api/leaves/reject', async (req, res) => {
         const [apps] = await connection.execute('SELECT * FROM leave_applications WHERE id = ?', [application_id]);
         if (apps.length === 0) throw new Error('Application not found');
         const app_data = apps[0];
+
+        // Check if the leave application belongs to a closed month (accrual already generated)
+        const leaveDateReject = new Date(app_data.applied_at);
+        const leaveMonthReject = leaveDateReject.getMonth() + 1;
+        const leaveYearReject = leaveDateReject.getFullYear();
+        const [accrualLogsReject] = await connection.execute(
+            'SELECT * FROM accrual_logs WHERE (year > ?) OR (year = ? AND month >= ?)',
+            [leaveYearReject, leaveYearReject, leaveMonthReject]
+        );
+        if (accrualLogsReject.length > 0) {
+            throw new Error(`Reject Locked: This leave application belongs to a closed month (${leaveMonthReject}/${leaveYearReject}). To correct credits, please perform a Manual Balance Adjustment.`);
+        }
 
         if (app_data.leave_type === LEAVE_TYPES.FORCE) {
             // === FORCE LEAVE SPECIAL CASE: Exigency of Service ===
@@ -735,24 +762,38 @@ app.get('/api/leaves/history', async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
+        const search = req.query.search || '';
         const offset = (page - 1) * limit;
 
-        const [countRows] = await db.execute(`
+        let countQuery = `
             SELECT COUNT(*) as total 
-            FROM leave_applications l
-            WHERE l.status != 'Pending Approval'
-        `);
-        const total = countRows[0].total;
-
-        const [rows] = await db.execute(`
-            SELECT l.*, e.full_name,
-                   (SELECT COUNT(*) FROM accrual_logs a WHERE a.month = MONTH(COALESCE(l.date_to, l.applied_at)) AND a.year = YEAR(COALESCE(l.date_to, l.applied_at))) > 0 AS is_closed
             FROM leave_applications l
             JOIN employees e ON l.employee_id = e.id
             WHERE l.status != 'Pending Approval'
-            ORDER BY l.applied_at DESC
-            LIMIT ${limit} OFFSET ${offset}
-        `);
+        `;
+        let dataQuery = `
+            SELECT l.*, e.full_name,
+                   (SELECT COUNT(*) FROM accrual_logs a WHERE (a.year > YEAR(l.applied_at)) OR (a.year = YEAR(l.applied_at) AND a.month >= MONTH(l.applied_at))) > 0 AS is_closed
+            FROM leave_applications l
+            JOIN employees e ON l.employee_id = e.id
+            WHERE l.status != 'Pending Approval'
+        `;
+        
+        let queryParams = [];
+        
+        if (search) {
+            const searchTerm = `%${search}%`;
+            countQuery += ` AND (e.full_name LIKE ? OR l.employee_id LIKE ?)`;
+            dataQuery += ` AND (e.full_name LIKE ? OR l.employee_id LIKE ?)`;
+            queryParams.push(searchTerm, searchTerm);
+        }
+        
+        dataQuery += ` ORDER BY l.applied_at DESC LIMIT ${limit} OFFSET ${offset}`;
+
+        const [countRows] = await db.execute(countQuery, queryParams);
+        const total = countRows[0].total;
+
+        const [rows] = await db.execute(dataQuery, queryParams);
 
         res.json({
             data: rows,
@@ -1154,7 +1195,7 @@ app.get('/api/tardy', async (req, res) => {
     try {
         const [rows] = await db.execute(`
             SELECT t.*, e.full_name,
-                   (SELECT COUNT(*) FROM accrual_logs a WHERE a.month = MONTH(t.deduction_date) AND a.year = YEAR(t.deduction_date)) > 0 AS is_closed
+                   (SELECT COUNT(*) FROM accrual_logs a WHERE (a.year > YEAR(t.deduction_date)) OR (a.year = YEAR(t.deduction_date) AND a.month >= MONTH(t.deduction_date))) > 0 AS is_closed
             FROM tardy_deductions t
             JOIN employees e ON t.employee_id = e.id
             ORDER BY t.deduction_date DESC
@@ -1242,8 +1283,8 @@ app.post('/api/tardy/undo', async (req, res) => {
         const tardyYear = tardyDate.getFullYear();
 
         const [accrualLogs] = await connection.execute(
-            'SELECT * FROM accrual_logs WHERE month = ? AND year = ?',
-            [tardyMonth, tardyYear]
+            'SELECT * FROM accrual_logs WHERE (year > ?) OR (year = ? AND month >= ?)',
+            [tardyYear, tardyYear, tardyMonth]
         );
 
         if (accrualLogs.length > 0) {
@@ -1299,6 +1340,20 @@ app.post('/api/tardy/redo', async (req, res) => {
         if (rows.length === 0) throw new Error('Tardy record not found');
         const tardy = rows[0];
         if (tardy.status !== 'Undone') throw new Error('Only undone deductions can be redone');
+
+        // Check if the tardy record belongs to a closed month
+        const tardyDate = new Date(tardy.deduction_date);
+        const tardyMonth = tardyDate.getMonth() + 1;
+        const tardyYear = tardyDate.getFullYear();
+
+        const [accrualLogs] = await connection.execute(
+            'SELECT * FROM accrual_logs WHERE (year > ?) OR (year = ? AND month >= ?)',
+            [tardyYear, tardyYear, tardyMonth]
+        );
+
+        if (accrualLogs.length > 0) {
+            throw new Error(`Redo Locked: This tardiness record belongs to a closed month (${tardyMonth}/${tardyYear}). To correct credits, please perform a Manual Balance Adjustment.`);
+        }
 
         const days = parseFloat(tardy.equivalent_day);
 
